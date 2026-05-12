@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bolão Copa Rezende</title>
+    <!-- Bibliotecas via CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --cor-areia: #F5F5DC;
+            --cor-chumbo: #333333;
+            --cor-verde: #009B3A;
+            --cor-amarelo: #FEDF00;
+            --cor-branco: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--cor-areia);
+            color: var(--cor-chumbo);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--cor-verde);
+            text-transform: uppercase;
+            border-bottom: 4px solid var(--cor-amarelo);
+            display: inline-block;
+            padding-bottom: 10px;
+        }
+
+        .card {
+            background-color: var(--cor-branco);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .regras {
+            border-left: 8px solid var(--cor-amarelo);
+        }
+
+        .regras h2 { margin-top: 0; color: var(--cor-verde); }
+        .regras ul { padding-left: 20px; }
+
+        .painel-jogo {
+            background-color: var(--cor-verde);
+            color: var(--cor-branco);
+            text-align: center;
+            padding: 30px;
+        }
+
+        .painel-jogo h2 { margin-top: 0; }
+        
+        .timer {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--cor-amarelo);
+            margin: 15px 0;
+        }
+
+        .form-palpite {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .input-gols {
+            width: 60px;
+            height: 50px;
+            font-size: 1.5rem;
+            text-align: center;
+            border-radius: 8px;
+            border: none;
+            color: var(--cor-chumbo);
+        }
+
+        .vs { font-weight: bold; font-size: 1.2rem; }
+
+        .botao {
+            background-color: var(--cor-amarelo);
+            color: var(--cor-chumbo);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            margin-top: 20px;
+            text-transform: uppercase;
+        }
+
+        .botao:hover:not(:disabled) {
+            background-color: #e5c900;
+            transform: scale(1.05);
+        }
+
+        .botao:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .ranking table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .ranking th, .ranking td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .ranking th {
+            background-color: #f8f8f8;
+            color: var(--cor-verde);
+        }
+
+        .top5 {
+            background-color: rgba(254, 223, 0, 0.1);
+            font-weight: bold;
+        }
+
+        .login-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .input-field {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-width: 300px;
+            margin: 10px 0;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .error-msg { color: #ff4444; font-size: 0.9rem; margin-top: 10px; font-weight: bold; }
+        .success-msg { color: var(--cor-verde); font-size: 0.9rem; margin-top: 10px; font-weight: bold; }
+
+        @media (max-width: 600px) {
+            .form-palpite { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // CONFIGURAÇÃO SUPABASE
+        const SUPABASE_URL = "https://yahupoaglcwmjcktwyym.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaHVwb2FnbGN3bWpja3R3eXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MzU0NDQsImV4cCI6MjA5NDExMTQ0NH0.k1AoGE2sXsVCKEUm0Roc0Is8M27U8UpRRMzrdktoECY";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const DOMINIO_PERMITIDO = "@rezendeconstrucao.com.br";
+        const EMAIL_TESTE = "designgraficorezende@gmail.com";
+
+        function BolaoApp() {
+            const [user, setUser] = useState(null);
+            const [employeeData, setEmployeeData] = useState(null);
+            const [emailInput, setEmailInput] = useState("");
+            const [otpInput, setOtpInput] = useState("");
+            const [nameInput, setNameInput] = useState("");
+            
+            const [step, setStep] = useState("email"); // email, otp, name, dashboard
+            const [loading, setLoading] = useState(false);
+            const [match, setMatch] = useState(null);
+            const [timeLeft, setTimeLeft] = useState("");
+            const [isLocked, setIsLocked] = useState(false);
+            const [leaderboard, setLeaderboard] = useState([]);
+            const [prediction, setPrediction] = useState({ brazil: "", opponent: "" });
+            const [message, setMessage] = useState({ type: "", text: "" });
+
+            useEffect(() => {
+                checkSession();
+                fetchNextMatch();
+                fetchLeaderboard();
+            }, []);
+
+            async function checkSession() {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    setUser(session.user);
+                    loadEmployeeData(session.user.email);
+                }
+            }
+
+            async function loadEmployeeData(email) {
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .eq('email', email)
+                    .single();
+
+                if (data) {
+                    setEmployeeData(data);
+                    setStep("dashboard");
+                } else {
+                    setStep("name");
+                }
+            }
+
+            async function fetchNextMatch() {
+                const { data, error } = await supabase
+                    .from('matches')
+                    .select('*')
+                    .eq('status', 'pending')
+                    .order('kickoff_time', { ascending: true })
+                    .limit(1)
+                    .single();
+
+                if (data) {
+                    setMatch(data);
+                    startTimer(data.kickoff_time);
+                }
+            }
+
+            async function fetchLeaderboard() {
+                const { data, error } = await supabase.rpc('get_rezende_leaderboard');
+                if (data) setLeaderboard(data);
+            }
+
+            function startTimer(kickoffStr) {
+                const kickoffTime = new Date(kickoffStr).getTime();
+                const deadlineTime = kickoffTime - (2 * 60 * 60 * 1000);
+
+                const interval = setInterval(() => {
+                    const now = new Date().getTime();
+                    const distance = deadlineTime - now;
+
+                    if (distance <= 0) {
+                        clearInterval(interval);
+                        setTimeLeft("PALPITES ENCERRADOS");
+                        setIsLocked(true);
+                    } else {
+                        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                        setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+                    }
+                }, 1000);
+            }
+
+            async function handleSendOTP() {
+                setMessage({ type: "", text: "" });
+                const email = emailInput.trim().toLowerCase();
+
+                if (!email.endsWith(DOMINIO_PERMITIDO) && email !== EMAIL_TESTE) {
+                    setMessage({ type: "error", text: `Acesso restrito a e-mails ${DOMINIO_PERMITIDO}` });
+                    return;
+                }
+
+                setLoading(true);
+                const { error } = await supabase.auth.signInWithOtp({ email });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Erro ao enviar código. Verifique as configurações de SMTP no Supabase." });
+                } else {
+                    setStep("otp");
+                    setMessage({ type: "success", text: "Código enviado para seu e-mail!" });
+                }
+            }
+
+            async function handleVerifyOTP() {
+                setMessage({ type: "", text: "" });
+                setLoading(true);
+                const { data: { session }, error } = await supabase.auth.verifyOtp({
+                    email: emailInput.trim().toLowerCase(),
+                    token: otpInput.trim(),
+                    type: 'email'
+                });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Código inválido ou expirado." });
+                } else {
+                    setUser(session.user);
+                    loadEmployeeData(session.user.email);
+                }
+            }
+
+            async function handleRegisterName() {
+                const name = nameInput.trim();
+                if (name.length < 3) {
+                    setMessage({ type: "error", text: "Digite seu nome completo." });
+                    return;
+                }
+
+                setLoading(true);
+                const { data, error } = await supabase
+                    .from('employees')
+                    .insert([{ full_name: name, email: user.email }])
+                    .select()
+                    .single();
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Erro ao salvar nome. Verifique as permissões RLS." });
+                } else {
+                    setEmployeeData(data);
+                    setStep("dashboard");
+                    setMessage({ type: "success", text: "Cadastro concluído!" });
+                }
+            }
+
+            async function submitPrediction() {
+                if (!employeeData) return;
+
+                setLoading(true);
+                const { error } = await supabase
+                    .from('predictions')
+                    .upsert({
+                        employee_id: employeeData.id,
+                        match_id: match.id,
+                        pred_brazil: parseInt(prediction.brazil),
+                        pred_opponent: parseInt(prediction.opponent)
+                    });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Erro ao enviar palpite. Verifique o prazo." });
+                } else {
+                    setMessage({ type: "success", text: "Palpite enviado com sucesso!" });
+                    fetchLeaderboard();
+                }
+            }
+
+            async function handleLogout() {
+                await supabase.auth.signOut();
+                setUser(null);
+                setEmployeeData(null);
+                setStep("email");
+                setEmailInput("");
+                setOtpInput("");
+                setNameInput("");
+                setMessage({type:"", text:""});
+            }
+
+            return (
+                <div className="container">
+                    <header>
+                        <h1>Bolão Copa Rezende</h1>
+                        <p>A união da Rezende com a torcida pelo Brasil!</p>
+                    </header>
+
+                    <div className="card regras">
+                        <h2>Regras de Pontuação</h2>
+                        <ul>
+                            <li><strong>5 Pontos:</strong> Placar Exato.</li>
+                            <li><strong>2 Pontos:</strong> Acertou o vencedor ou empate.</li>
+                            <li><strong>0 Pontos:</strong> Errou o resultado.</li>
+                        </ul>
+                    </div>
+
+                    {step === "email" && (
+                        <div className="card login-section">
+                            <h3>Acesse com seu e-mail corporativo</h3>
+                            <input 
+                                type="email" 
+                                className="input-field" 
+                                placeholder="usuario@rezendeconstrucao.com.br"
+                                value={emailInput}
+                                onChange={(e) => setEmailInput(e.target.value)}
+                            />
+                            <br/>
+                            <button className="botao" onClick={handleSendOTP} disabled={loading}>
+                                {loading ? "Enviando..." : "Enviar Código por E-mail"}
+                            </button>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {step === "otp" && (
+                        <div className="card login-section">
+                            <h3>Digite o código de 6 dígitos</h3>
+                            <p>Enviamos um código para <strong>{emailInput}</strong></p>
+                            <input 
+                                type="text" 
+                                className="input-field" 
+                                placeholder="000000"
+                                maxLength="8"
+                                value={otpInput}
+                                onChange={(e) => setOtpInput(e.target.value)}
+                            />
+                            <br/>
+                            <button className="botao" onClick={handleVerifyOTP} disabled={loading}>
+                                {loading ? "Verificando..." : "Verificar Código"}
+                            </button>
+                            <button onClick={() => setStep("email")} style={{display: 'block', margin: '10px auto', background: 'none', border: 'none', color: '#666', cursor: 'pointer'}}>Voltar</button>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {step === "name" && (
+                        <div className="card login-section">
+                            <h3>Quase lá! Qual o seu nome?</h3>
+                            <p>Identificamos que é seu primeiro acesso.</p>
+                            <input 
+                                type="text" 
+                                className="input-field" 
+                                placeholder="Seu Nome Completo"
+                                value={nameInput}
+                                onChange={(e) => setNameInput(e.target.value)}
+                            />
+                            <br/>
+                            <button className="botao" onClick={handleRegisterName} disabled={loading}>
+                                {loading ? "Salvando..." : "Entrar no Bolão"}
+                            </button>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {step === "dashboard" && employeeData && (
+                        <>
+                            <div className="card login-section">
+                                <p>Olá, <strong>{employeeData.full_name}</strong>! 👋</p>
+                                <button onClick={handleLogout} style={{background: 'none', border: 'none', color: 'blue', cursor: 'pointer', textDecoration: 'underline'}}>Sair da conta</button>
+                            </div>
+
+                            {match && (
+                                <div className="card painel-jogo">
+                                    <h2>Próximo Jogo: Brasil x {match.opponent}</h2>
+                                    <div className="timer">⏳ Tempo restante: {timeLeft}</div>
+                                    
+                                    <div className="form-palpite">
+                                        <div>
+                                            <label>Brasil</label><br/>
+                                            <input 
+                                                type="number" 
+                                                className="input-gols" 
+                                                disabled={isLocked}
+                                                value={prediction.brazil}
+                                                onChange={(e) => setPrediction({...prediction, brazil: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="vs">X</div>
+                                        <div>
+                                            <label>{match.opponent}</label><br/>
+                                            <input 
+                                                type="number" 
+                                                className="input-gols" 
+                                                disabled={isLocked}
+                                                value={prediction.opponent}
+                                                onChange={(e) => setPrediction({...prediction, opponent: e.target.value})}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        className="botao" 
+                                        disabled={isLocked || !prediction.brazil || !prediction.opponent || loading}
+                                        onClick={submitPrediction}
+                                    >
+                                        {loading ? "Enviando..." : "Enviar meu Palpite"}
+                                    </button>
+                                    {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"} style={{color: message.type === 'success' ? '#FEDF00' : '#ff4444'}}>{message.text}</p>}
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    <div className="card ranking">
+                        <h2>📊 Ranking Geral</h2>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Colaborador</th>
+                                    <th>Pontos</th>
+                                    <th>Placares Exatos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {leaderboard.length > 0 ? leaderboard.map((item) => (
+                                    <tr key={item.employee_name} className={item.rank <= 5 ? "top5" : ""}>
+                                        <td>{item.rank}º</td>
+                                        <td>{item.employee_name} {item.rank <= 5 ? "⭐" : ""}</td>
+                                        <td>{item.total_points}</td>
+                                        <td>{item.exact_scores}</td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan="4" style={{textAlign: 'center'}}>Nenhum palpite computado ainda.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<BolaoApp />);
+    </script>
+</body>
+</html>
