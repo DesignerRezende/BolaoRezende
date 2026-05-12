@@ -9,16 +9,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #F5F5DC; margin: 0; padding: 20px; }
-       .container { max-width: 800px; margin: 0 auto; }
-       .regras { background-color: #FFFFFF; padding: 20px; border-left: 5px solid #FEDF00; border-radius: 8px; margin-bottom: 20px; }
-       .painel-jogo { background-color: #009B3A; color: white; padding: 30px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
-       .ranking { background-color: #FFFFFF; padding: 20px; border-radius: 8px; }
+      .container { max-width: 800px; margin: 0 auto; }
+      .regras { background-color: #FFFFFF; padding: 20px; border-left: 5px solid #FEDF00; border-radius: 8px; margin-bottom: 20px; }
+      .painel-jogo { background-color: #009B3A; color: white; padding: 30px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
+      .ranking { background-color: #FFFFFF; padding: 20px; border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; }
         th { border-bottom: 2px solid #009B3A; }
-       .top5 { background-color: #FFF8DC; font-weight: bold; }
-       .botao { padding: 15px 30px; font-size: 18px; background-color: #FEDF00; color: #333; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-       .botao:disabled { background-color: #ccc; cursor: not-allowed; }
+      .top5 { background-color: #FFF8DC; font-weight: bold; }
+      .botao { padding: 15px 30px; font-size: 18px; background-color: #FEDF00; color: #333; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+      .botao:disabled { background-color: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -32,7 +32,7 @@
 
         function BolaoApp() {
             const [match, setMatch] = React.useState(null);
-            const = React.useState("");
+            const = React.useState("Calculando tempo...");
             const [isLocked, setIsLocked] = React.useState(false);
             const [leaderboard, setLeaderboard] = React.useState();
 
@@ -43,12 +43,12 @@
 
             async function fetchNextMatch() {
                 const { data } = await supabase
-                   .from('matches')
-                   .select('*')
-                   .eq('status', 'pending')
-                   .order('kickoff_time', { ascending: true })
-                   .limit(1)
-                   .single();
+                  .from('matches')
+                  .select('*')
+                  .eq('status', 'pending')
+                  .order('kickoff_time', { ascending: true })
+                  .limit(1)
+                  .single();
                 
                 if (data) {
                     setMatch(data);
@@ -98,7 +98,7 @@
                         <p><i>Atenção: Os 5 primeiros colocados recebem prêmios exclusivos da diretoria!</i></p>
                     </div>
 
-                    {match && (
+                    {match? (
                         <div className="painel-jogo">
                             <h2>Próximo Jogo: Brasil x {match.opponent}</h2>
                             <h3 style={{ color: '#FEDF00' }}>⏱ Tempo restante: {timeLeft}</h3>
@@ -106,6 +106,10 @@
                                 ENVIAR MEU PALPITE
                             </button>
                             <p style={{marginTop: '10px', fontSize: '12px'}}>*O envio de palpites será integrado ao login do funcionário.</p>
+                        </div>
+                    ) : (
+                        <div className="painel-jogo" style={{ backgroundColor: '#ccc', color: '#333' }}>
+                            <h2>Nenhum jogo disponível no momento.</h2>
                         </div>
                     )}
 
@@ -127,6 +131,11 @@
                                         <td>{user.total_points}</td>
                                     </tr>
                                 ))}
+                                {leaderboard.length === 0 && (
+                                    <tr>
+                                        <td colSpan="3" style={{textAlign: "center"}}>Nenhum ponto registrado ainda.</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
