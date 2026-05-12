@@ -9,23 +9,23 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #F5F5DC; margin: 0; padding: 20px; }
-      .container { max-width: 800px; margin: 0 auto; }
-      .regras { background-color: #FFFFFF; padding: 20px; border-left: 5px solid #FEDF00; border-radius: 8px; margin-bottom: 20px; }
-      .painel-jogo { background-color: #009B3A; color: white; padding: 30px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
-      .ranking { background-color: #FFFFFF; padding: 20px; border-radius: 8px; }
+     .container { max-width: 800px; margin: 0 auto; }
+     .regras { background-color: #FFFFFF; padding: 20px; border-left: 5px solid #FEDF00; border-radius: 8px; margin-bottom: 20px; }
+     .painel-jogo { background-color: #009B3A; color: white; padding: 30px; text-align: center; border-radius: 8px; margin-bottom: 20px; }
+     .ranking { background-color: #FFFFFF; padding: 20px; border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; }
         th { border-bottom: 2px solid #009B3A; }
-      .top5 { background-color: #FFF8DC; font-weight: bold; }
-      .botao { padding: 15px 30px; font-size: 18px; background-color: #FEDF00; color: #333; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-      .botao:disabled { background-color: #ccc; cursor: not-allowed; }
+     .top5 { background-color: #FFF8DC; font-weight: bold; }
+     .botao { padding: 15px 30px; font-size: 18px; background-color: #FEDF00; color: #333; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+     .botao:disabled { background-color: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // ATENÇÃO: COLOQUE SUA URL E SUA CHAVE DO SUPABASE AQUI DENTRO DAS ASPAS
+        // ATENÇÃO: COLOQUE SUA URL E SUA CHAVE DO SUPABASE AQUI DENTRO DAS ASPAS SIMPLES
         const SUPABASE_URL = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaHVwb2FnbGN3bWpja3R3eXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MzU0NDQsImV4cCI6MjA5NDExMTQ0NH0.k1AoGE2sXsVCKEUm0Roc0Is8M27U8UpRRMzrdktoECY';
         const SUPABASE_KEY = 'https://yahupoaglcwmjcktwyym.supabase.co/rest/v1/';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -42,23 +42,33 @@
             },);
 
             async function fetchNextMatch() {
-                const { data } = await supabase
-                  .from('matches')
-                  .select('*')
-                  .eq('status', 'pending')
-                  .order('kickoff_time', { ascending: true })
-                  .limit(1)
-                  .single();
-                
-                if (data) {
-                    setMatch(data);
-                    startTimer(data.kickoff_time);
+                try {
+                    const { data, error } = await supabase
+                     .from('matches')
+                     .select('*')
+                     .eq('status', 'pending')
+                     .order('kickoff_time', { ascending: true })
+                     .limit(1)
+                     .single();
+                    
+                    if (data) {
+                        setMatch(data);
+                        startTimer(data.kickoff_time);
+                    }
+                } catch (err) {
+                    console.log("Aguardando banco de dados...");
                 }
             }
 
             async function fetchLeaderboard() {
-                const { data } = await supabase.rpc('get_rezende_leaderboard');
-                if (data) setLeaderboard(data);
+                try {
+                    const { data, error } = await supabase.rpc('get_rezende_leaderboard');
+                    if (data) {
+                        setLeaderboard(data);
+                    }
+                } catch (err) {
+                    console.log("Aguardando banco de dados...");
+                }
             }
 
             function startTimer(kickoffTimeStr) {
@@ -124,14 +134,15 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {leaderboard.map((user) => (
-                                    <tr key={user.employee_name} className={user.rank <= 5? "top5" : ""}>
-                                        <td>{user.rank}º</td>
-                                        <td>{user.employee_name} {user.rank <= 5? "⭐" : ""}</td>
-                                        <td>{user.total_points}</td>
-                                    </tr>
-                                ))}
-                                {leaderboard.length === 0 && (
+                                {leaderboard && leaderboard.length > 0? (
+                                    leaderboard.map((user) => (
+                                        <tr key={user.employee_name} className={user.rank <= 5? "top5" : ""}>
+                                            <td>{user.rank}º</td>
+                                            <td>{user.employee_name} {user.rank <= 5? "⭐" : ""}</td>
+                                            <td>{user.total_points}</td>
+                                        </tr>
+                                    ))
+                                ) : (
                                     <tr>
                                         <td colSpan="3" style={{textAlign: "center"}}>Nenhum ponto registrado ainda.</td>
                                     </tr>
