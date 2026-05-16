@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bolão Copa Rezende</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/webp" href="https://files.manuscdn.com/user_upload_by_module/session_file/310519663602310715/qxfsYKCToENvDone.webp">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Bibliotecas via CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --cor-areia: #F5F5DC;
+            --cor-chumbo: #333333;
+            --cor-azul-rezende: #141b4d;
+            --cor-verde: #009B3A;
+            --cor-amarelo: #FEDF00;
+            --cor-branco: #FFFFFF;
+            --cor-azul: #002776;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--cor-areia);
+            color: var(--cor-chumbo);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            background-color: var(--cor-azul-rezende);
+            width: 100%;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .logo-principal {
+            max-width: 350px;
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(1px 0 0 white) drop-shadow(-1px 0 0 white) drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white);
+        }
+
+        h1 {
+            color: var(--cor-amarelo);
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-top: 20px;
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+        }
+
+        .card {
+            background-color: var(--cor-branco);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .card-brasil {
+            background: linear-gradient(135deg, var(--cor-verde) 0%, #007b2e 100%);
+            color: var(--cor-branco);
+            border: none;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        .card-brasil::before {
+            content: "";
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 150px;
+            height: 150px;
+            background-color: var(--cor-amarelo);
+            border-radius: 50%;
+            opacity: 0.1;
+        }
+
+        .card-brasil h2 {
+            color: var(--cor-amarelo);
+            text-transform: uppercase;
+            font-weight: 900;
+            margin-top: 0;
+            font-size: 1.4rem;
+        }
+
+        .timer-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .timer {
+            background-color: rgba(0,0,0,0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            color: var(--cor-amarelo);
+            display: inline-block;
+            margin: 10px 0 20px 0;
+            font-size: 0.9rem;
+        }
+
+        .form-palpite {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 25px;
+            margin-top: 10px;
+        }
+
+        .time-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .label-time {
+            font-weight: 900;
+            font-size: 1.2rem;
+            color: var(--cor-amarelo);
+            letter-spacing: 1px;
+        }
+
+        .input-gols {
+            width: 70px;
+            height: 60px;
+            font-size: 2rem;
+            text-align: center;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            font-weight: 900;
+            color: var(--cor-chumbo);
+            transition: border-color 0.3s;
+        }
+
+        .input-gols:focus {
+            outline: none;
+            border-color: var(--cor-amarelo);
+        }
+
+        .vs { font-weight: 900; font-size: 1.5rem; color: var(--cor-amarelo); padding-bottom: 10px; }
+
+        .botao-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .botao {
+            background-color: var(--cor-amarelo);
+            color: var(--cor-chumbo);
+            border: none;
+            padding: 12px 25px;
+            font-size: 0.9rem;
+            font-weight: 900;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 25px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 12px rgba(254, 223, 0, 0.2);
+        }
+
+        .botao:hover:not(:disabled) {
+            background-color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(254, 223, 0, 0.4);
+        }
+
+        .botao:disabled {
+            background-color: #ccc;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .ranking h2, .meus-palpites h2 { color: var(--cor-verde); font-weight: 900; }
+
+        .ranking table, .meus-palpites table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+        .ranking th, .meus-palpites th {
+            padding: 15px;
+            text-align: left;
+            color: #888;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .ranking td, .meus-palpites td {
+            padding: 15px;
+            background-color: #fcfcfc;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+
+        .ranking td:first-child, .meus-palpites td:first-child { border-left: 1px solid #eee; border-radius: 12px 0 0 12px; font-weight: 900; }
+        .ranking td:last-child, .meus-palpites td:last-child { border-right: 1px solid #eee; border-radius: 0 12px 12px 0; }
+
+        .top5 td { background-color: rgba(254, 223, 0, 0.05); border-color: var(--cor-amarelo); }
+        .top5 td:first-child { color: var(--cor-verde); }
+
+        .login-section { text-align: center; }
+
+        .input-field {
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            width: 100%;
+            max-width: 350px;
+            margin: 10px 0;
+            font-size: 1rem;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .error-msg { color: #ff4444; font-size: 0.9rem; margin-top: 15px; font-weight: bold; }
+        .success-msg { color: var(--cor-verde); font-size: 0.9rem; margin-top: 15px; font-weight: bold; }
+
+        .link-acao {
+            display: inline-block;
+            margin: 15px 10px;
+            color: #888;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .link-acao:hover { color: var(--cor-verde); }
+
+        .footer-rezende {
+            margin-top: 50px;
+            padding: 30px;
+            text-align: center;
+            color: #888;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 600px) {
+            .form-palpite { gap: 15px; }
+            .input-gols { width: 60px; height: 55px; font-size: 1.8rem; }
+            .label-time { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663602310715/qddqqseuXmSuJrWD.webp" alt="Rezende Construção" class="logo-principal">
+        <h1>Bolão Copa 2026</h1>
+    </header>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // CONFIGURAÇÃO SUPABASE
+        const SUPABASE_URL = "https://yahupoaglcwmjcktwyym.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhaHVwb2FnbGN3bWpja3R3eXltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MzU0NDQsImV4cCI6MjA5NDExMTQ0NH0.k1AoGE2sXsVCKEUm0Roc0Is8M27U8UpRRMzrdktoECY";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const DOMINIO_PERMITIDO = "@rezendeconstrucao.com.br";
+        const EMAIL_TESTE = "designgraficorezende@gmail.com";
+
+        function BolaoApp() {
+            const [user, setUser] = useState(null);
+            const [employeeData, setEmployeeData] = useState(null);
+            const [emailInput, setEmailInput] = useState("");
+            const [passwordInput, setPasswordInput] = useState("");
+            const [otpInput, setOtpInput] = useState("");
+            const [nameInput, setNameInput] = useState("");
+            
+            const [step, setStep] = useState("login"); 
+            const [loading, setLoading] = useState(false);
+            const [match, setMatch] = useState(null);
+            const [timeLeft, setTimeLeft] = useState("");
+            const [isLocked, setIsLocked] = useState(false);
+            const [leaderboard, setLeaderboard] = useState([]);
+            const [myPredictions, setMyPredictions] = useState([]);
+            const [prediction, setPrediction] = useState({ brazil: "", opponent: "" });
+            const [message, setMessage] = useState({ type: "", text: "" });
+
+            useEffect(() => {
+                checkSession();
+                fetchNextMatch();
+                fetchLeaderboard();
+            }, []);
+
+            async function checkSession() {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    setUser(session.user);
+                    loadEmployeeData(session.user.email);
+                }
+            }
+
+            async function loadEmployeeData(email) {
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .eq('email', email)
+                    .single();
+
+                if (data) {
+                    setEmployeeData(data);
+                    setStep("dashboard");
+                    fetchMyPredictions(data.id);
+                } else {
+                    setStep("signup_finish");
+                }
+            }
+
+            async function fetchNextMatch() {
+                const { data, error } = await supabase
+                    .from('matches')
+                    .select('*')
+                    .eq('status', 'pending')
+                    .order('kickoff_time', { ascending: true })
+                    .limit(1)
+                    .single();
+
+                if (data) {
+                    setMatch(data);
+                    startTimer(data.kickoff_time);
+                }
+            }
+
+            async function fetchLeaderboard() {
+                const { data, error } = await supabase.rpc('get_rezende_leaderboard');
+                if (data) setLeaderboard(data);
+            }
+
+            async function fetchMyPredictions(employeeId) {
+                const { data, error } = await supabase
+                    .from('predictions')
+                    .select('*, matches(opponent, score_brazil, score_opponent, status)')
+                    .eq('employee_id', employeeId)
+                    .order('created_at', { ascending: false });
+                
+                if (data) setMyPredictions(data);
+            }
+
+            function startTimer(kickoffStr) {
+                const kickoffTime = new Date(kickoffStr).getTime();
+                const deadlineTime = kickoffTime - (2 * 60 * 60 * 1000);
+
+                const interval = setInterval(() => {
+                    const now = new Date().getTime();
+                    const distance = deadlineTime - now;
+
+                    if (distance <= 0) {
+                        clearInterval(interval);
+                        setTimeLeft("PALPITES ENCERRADOS");
+                        setIsLocked(true);
+                    } else {
+                        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                        setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
+                    }
+                }, 1000);
+            }
+
+            async function handleLogin() {
+                setMessage({ type: "", text: "" });
+                setLoading(true);
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: emailInput.trim().toLowerCase(),
+                    password: passwordInput
+                });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "E-mail ou senha incorretos." });
+                } else {
+                    setUser(data.user);
+                    loadEmployeeData(data.user.email);
+                }
+            }
+
+            async function handleStartSignup() {
+                setMessage({ type: "", text: "" });
+                const email = emailInput.trim().toLowerCase();
+
+                if (!email.endsWith(DOMINIO_PERMITIDO) && email !== EMAIL_TESTE) {
+                    setMessage({ type: "error", text: `Acesso restrito a e-mails ${DOMINIO_PERMITIDO}` });
+                    return;
+                }
+
+                setLoading(true);
+                const { error } = await supabase.auth.signInWithOtp({ email });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Erro ao enviar código: " + error.message });
+                } else {
+                    setStep("signup_otp");
+                    setMessage({ type: "success", text: "Código enviado para seu e-mail!" });
+                }
+            }
+
+            async function handleVerifySignupOTP() {
+                setMessage({ type: "", text: "" });
+                setLoading(true);
+                const { data: { session }, error } = await supabase.auth.verifyOtp({
+                    email: emailInput.trim().toLowerCase(),
+                    token: otpInput.trim(),
+                    type: 'email'
+                });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Código inválido: " + error.message });
+                } else {
+                    setUser(session.user);
+                    setStep("signup_finish");
+                }
+            }
+
+            async function handleFinishSignup() {
+                const name = nameInput.trim();
+                const password = passwordInput.trim();
+
+                if (name.split(' ').length < 2) {
+                    setMessage({ type: "error", text: "Digite seu nome e sobrenome." });
+                    return;
+                }
+
+                if (password.length < 6) {
+                    setMessage({ type: "error", text: "A senha deve ter pelo menos 6 caracteres." });
+                    return;
+                }
+
+                setLoading(true);
+                
+                // 1. Definir a senha primeiro
+                const { error: authError } = await supabase.auth.updateUser({ password });
+                
+                if (authError) {
+                    setMessage({ type: "error", text: "Erro ao definir senha: " + authError.message });
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Criar o perfil do funcionário
+                const { data, error: profileError } = await supabase
+                    .from('employees')
+                    .insert([{ 
+                        full_name: name, 
+                        email: user.email,
+                        auth_user_id: user.id 
+                    }])
+                    .select()
+                    .single();
+                
+                setLoading(false);
+
+                if (profileError) {
+                    setMessage({ type: "error", text: "Erro ao salvar perfil: " + profileError.message });
+                } else {
+                    setEmployeeData(data);
+                    setStep("dashboard");
+                    setMessage({ type: "success", text: "Cadastro realizado com sucesso!" });
+                }
+            }
+
+            async function handleForgotPassword() {
+                setMessage({ type: "", text: "" });
+                if (!emailInput) {
+                    setMessage({ type: "error", text: "Digite seu e-mail primeiro." });
+                    return;
+                }
+
+                setLoading(true);
+                const { error } = await supabase.auth.resetPasswordForEmail(emailInput, {
+                    redirectTo: window.location.href,
+                });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Erro ao enviar e-mail: " + error.message });
+                } else {
+                    setMessage({ type: "success", text: "E-mail de recuperação enviado!" });
+                }
+            }
+
+            async function handleChangePassword() {
+                if (passwordInput.length < 6) {
+                    setMessage({ type: "error", text: "A nova senha deve ter pelo menos 6 caracteres." });
+                    return;
+                }
+
+                setLoading(true);
+                const { error } = await supabase.auth.updateUser({ password: passwordInput });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Erro ao alterar senha: " + error.message });
+                } else {
+                    setMessage({ type: "success", text: "Senha alterada com sucesso!" });
+                    setStep("dashboard");
+                }
+            }
+
+            async function submitPrediction() {
+                if (!employeeData) return;
+
+                setLoading(true);
+                const { error } = await supabase
+                    .from('predictions')
+                    .upsert({
+                        employee_id: employeeData.id,
+                        match_id: match.id,
+                        pred_brazil: parseInt(prediction.brazil),
+                        pred_opponent: parseInt(prediction.opponent)
+                    });
+                setLoading(false);
+
+                if (error) {
+                    setMessage({ type: "error", text: "Erro ao enviar palpite: " + error.message });
+                } else {
+                    setMessage({ type: "success", text: "Palpite enviado com sucesso!" });
+                    fetchLeaderboard();
+                    fetchMyPredictions(employeeData.id);
+                }
+            }
+
+            async function handleLogout() {
+                await supabase.auth.signOut();
+                setUser(null);
+                setEmployeeData(null);
+                setStep("login");
+                setEmailInput("");
+                setPasswordInput("");
+                setMessage({type:"", text:""});
+            }
+
+            function abbreviate(name) {
+                if (!name) return "";
+                if (name.toLowerCase() === "brasil") return "BRA";
+                return name.substring(0, 3).toUpperCase();
+            }
+
+            return (
+                <div className="container">
+                    {/* TELAS DE LOGIN E CADASTRO */}
+                    {step === "login" && (
+                        <div className="card login-section">
+                            <h3>Acesse sua conta</h3>
+                            <input type="email" className="input-field" placeholder="E-mail corporativo" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} /><br/>
+                            <input type="password" className="input-field" placeholder="Sua senha" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} /><br/>
+                            <button className="botao" onClick={handleLogin} disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
+                            <div style={{marginTop: '10px'}}>
+                                <span className="link-acao" onClick={() => setStep("signup_email")}>Criar nova conta</span>
+                                <span className="link-acao" onClick={() => setStep("forgot_password")}>Esqueci minha senha</span>
+                            </div>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {step === "signup_email" && (
+                        <div className="card login-section">
+                            <h3>Novo Cadastro</h3>
+                            <p>Digite seu e-mail corporativo para validação.</p>
+                            <input type="email" className="input-field" placeholder="usuario@rezendeconstrucao.com.br" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} /><br/>
+                            <button className="botao" onClick={handleStartSignup} disabled={loading}>{loading ? "Enviando..." : "Enviar Código"}</button>
+                            <span className="link-acao" onClick={() => setStep("login")}>Voltar para o Login</span>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {step === "signup_otp" && (
+                        <div className="card login-section">
+                            <h3>Validação de E-mail</h3>
+                            <p>Digite o código enviado para seu e-mail.</p>
+                            <input type="text" className="input-field" placeholder="000000" maxLength="8" value={otpInput} onChange={(e) => setOtpInput(e.target.value)} /><br/>
+                            <button className="botao" onClick={handleVerifySignupOTP} disabled={loading}>{loading ? "Verificando..." : "Validar Código"}</button>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {step === "signup_finish" && (
+                        <div className="card login-section">
+                            <h3>Finalizar Cadastro</h3>
+                            <p>Defina seu nome e sua senha de acesso.</p>
+                            <input type="text" className="input-field" placeholder="Nome e Sobrenome" value={nameInput} onChange={(e) => setNameInput(e.target.value)} /><br/>
+                            <input type="password" className="input-field" placeholder="Crie uma senha (mín. 6 caracteres)" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} /><br/>
+                            <button className="botao" onClick={handleFinishSignup} disabled={loading}>{loading ? "Finalizando..." : "Concluir Cadastro"}</button>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {step === "forgot_password" && (
+                        <div className="card login-section">
+                            <h3>Recuperar Senha</h3>
+                            <p>Enviaremos um link para o seu e-mail.</p>
+                            <input type="email" className="input-field" placeholder="Seu e-mail cadastrado" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} /><br/>
+                            <button className="botao" onClick={handleForgotPassword} disabled={loading}>{loading ? "Enviando..." : "Recuperar Senha"}</button>
+                            <span className="link-acao" onClick={() => setStep("login")}>Voltar para o Login</span>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {/* ÁREA LOGADA */}
+                    {step === "dashboard" && employeeData && (
+                        <>
+                            <div className="card login-section" style={{padding: '15px'}}>
+                                <p>Olá, <strong>{employeeData.full_name}</strong>! 👋</p>
+                                <div style={{display: 'flex', justifyContent: 'center', gap: '15px'}}>
+                                    <span className="link-acao" onClick={() => setStep("change_password")}>Alterar Senha</span>
+                                    <span className="link-acao" onClick={handleLogout} style={{color: 'red'}}>Sair</span>
+                                </div>
+                            </div>
+
+                            {match && (
+                                <div className="card card-brasil">
+                                    <h2>🇧🇷 Próximo Jogo do Brasil</h2>
+                                    <p style={{fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '5px'}}>Brasil x {match.opponent}</p>
+                                    <div className="timer-container">
+                                        <div className="timer">⏳ {timeLeft}</div>
+                                    </div>
+                                    
+                                    <div className="form-palpite">
+                                        <div className="time-box">
+                                            <span className="label-time">BRA</span>
+                                            <input type="number" className="input-gols" disabled={isLocked} value={prediction.brazil} onChange={(e) => setPrediction({...prediction, brazil: e.target.value})} />
+                                        </div>
+                                        <div className="vs">X</div>
+                                        <div className="time-box">
+                                            <span className="label-time">{abbreviate(match.opponent)}</span>
+                                            <input type="number" className="input-gols" disabled={isLocked} value={prediction.opponent} onChange={(e) => setPrediction({...prediction, opponent: e.target.value})} />
+                                        </div>
+                                    </div>
+
+                                    <div className="botao-container">
+                                        <button className="botao" disabled={isLocked || !prediction.brazil || !prediction.opponent || loading} onClick={submitPrediction}>
+                                            {loading ? "Enviando..." : "Enviar meu Palpite"}
+                                        </button>
+                                    </div>
+                                    {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"} style={{color: message.type === 'success' ? '#FEDF00' : '#ff4444'}}>{message.text}</p>}
+                                </div>
+                            )}
+
+                            {/* SEÇÃO MEUS PALPITES */}
+                            <div className="card meus-palpites">
+                                <h2>⚽ Meus Palpites</h2>
+                                <table>
+                                    <thead>
+                                        <tr><th>Jogo</th><th>Meu Palpite</th><th>Placar Real</th><th>Pontos</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {myPredictions.length > 0 ? myPredictions.map((p) => (
+                                            <tr key={p.id}>
+                                                <td>BRA x {abbreviate(p.matches.opponent)}</td>
+                                                <td>{p.pred_brazil} x {p.pred_opponent}</td>
+                                                <td>{p.matches.status === 'finished' ? `${p.matches.score_brazil} x ${p.matches.score_opponent}` : '-'}</td>
+                                                <td><strong>{p.points !== null ? p.points : '-'}</strong></td>
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan="4" style={{textAlign: 'center', padding: '20px'}}>Você ainda não fez nenhum palpite.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+
+                    {step === "change_password" && (
+                        <div className="card login-section">
+                            <h3>Alterar Senha</h3>
+                            <input type="password" className="input-field" placeholder="Nova senha" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} /><br/>
+                            <button className="botao" onClick={handleChangePassword} disabled={loading}>{loading ? "Alterando..." : "Salvar Nova Senha"}</button>
+                            <span className="link-acao" onClick={() => setStep("dashboard")}>Cancelar</span>
+                            {message.text && <p className={message.type === "error" ? "error-msg" : "success-msg"}>{message.text}</p>}
+                        </div>
+                    )}
+
+                    {/* RANKING */}
+                    <div className="card ranking">
+                        <h2>📊 Ranking Geral</h2>
+                        <table>
+                            <thead>
+                                <tr><th>Pos</th><th>Colaborador</th><th>Pontos</th><th>Placares Exatos</th></tr>
+                            </thead>
+                            <tbody>
+                                {leaderboard.length > 0 ? leaderboard.map((item) => (
+                                    <tr key={item.employee_name} className={item.rank <= 5 ? "top5" : ""}>
+                                        <td>{item.rank}º</td>
+                                        <td>{item.employee_name} {item.rank <= 5 ? "⭐" : ""}</td>
+                                        <td>{item.total_points}</td>
+                                        <td>{item.exact_scores}</td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan="4" style={{textAlign: 'center', padding: '40px'}}>Nenhum palpite computado ainda.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="footer-rezende">
+                        <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663602310715/qxfsYKCToENvDone.webp" alt="R" style={{width: '30px', marginBottom: '10px'}} /><br />
+                        &copy; 2026 Rezende Construção - Todos os direitos reservados.
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<BolaoApp />);
+    </script>
+</body>
+</html>
