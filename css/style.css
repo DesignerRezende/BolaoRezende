@@ -17,8 +17,17 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
 body {
+  width: 100%;
+  min-width: 0;
   margin: 0;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(0, 155, 58, 0.16), transparent 34%),
     linear-gradient(180deg, #fbfbe6 0%, #f5f5dc 100%);
@@ -54,6 +63,11 @@ button:disabled {
   box-shadow: none;
 }
 
+img {
+  max-width: 100%;
+  display: block;
+}
+
 .topbar {
   background:
     radial-gradient(circle at top right, rgba(0, 155, 58, 0.28), transparent 28%),
@@ -81,18 +95,21 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 20px;
+  min-width: 0;
 }
 
 .topbar-logo {
   width: min(260px, 42vw);
   max-height: 82px;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .topbar-actions {
   display: flex;
   align-items: center;
   gap: 14px;
+  flex-shrink: 0;
 }
 
 h1,
@@ -201,6 +218,7 @@ h2 {
 }
 
 .panel {
+  min-width: 0;
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid var(--borda);
   border-radius: 18px;
@@ -236,6 +254,7 @@ label {
 
 input {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--borda);
   border-radius: 12px;
   color: var(--chumbo);
@@ -274,6 +293,7 @@ input:focus {
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   font-weight: 900;
   line-height: 1;
+  word-break: break-word;
 }
 
 .live-box {
@@ -289,12 +309,19 @@ input:focus {
   color: var(--branco);
   display: flex;
   justify-content: space-between;
+  gap: 14px;
   padding: 18px;
+}
+
+.live-score span {
+  min-width: 0;
+  word-break: break-word;
 }
 
 .live-score strong {
   color: var(--amarelo);
   font-size: 1.5rem;
+  white-space: nowrap;
 }
 
 .countdown-box {
@@ -329,6 +356,7 @@ input:focus {
 .status {
   border-radius: 999px;
   display: inline-flex;
+  width: fit-content;
   font-size: 0.76rem;
   font-weight: 900;
   padding: 6px 9px;
@@ -356,6 +384,7 @@ input:focus {
 }
 
 .match-card {
+  min-width: 0;
   border: 1px solid var(--borda);
   border-radius: 16px;
   display: grid;
@@ -414,12 +443,15 @@ input:focus {
 }
 
 .table-wrap {
+  width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
   border-collapse: collapse;
   width: 100%;
+  min-width: 620px;
 }
 
 th,
@@ -608,6 +640,10 @@ th {
     flex-direction: column;
   }
 
+  .topbar-logo {
+    width: min(230px, 80vw);
+  }
+
   .grid,
   .guess-form,
   .hero {
@@ -634,5 +670,205 @@ th {
     align-items: flex-start;
     flex-direction: column;
     gap: 10px;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar__inner,
+  .layout,
+  .footer {
+    width: min(100% - 20px, 1120px);
+  }
+
+  .topbar__inner {
+    min-height: auto;
+    gap: 14px;
+    padding: 16px 0 18px;
+  }
+
+  .topbar-logo {
+    width: min(210px, 78vw);
+    max-height: 72px;
+  }
+
+  h1 {
+    font-size: clamp(1.45rem, 9vw, 2.35rem);
+    line-height: 1;
+  }
+
+  h2 {
+    font-size: 1.12rem;
+  }
+
+  .eyebrow {
+    font-size: 0.66rem;
+    letter-spacing: 0.07em;
+  }
+
+  .badge {
+    width: fit-content;
+    font-size: 0.78rem;
+    padding: 7px 11px;
+  }
+
+  .button-logout {
+    width: fit-content;
+    padding: 9px 13px;
+  }
+
+  .layout {
+    gap: 14px;
+    padding: 14px 0 22px;
+  }
+
+  .hero {
+    min-height: auto;
+    border-radius: 16px;
+  }
+
+  .hero__content {
+    padding: 22px 18px 14px;
+  }
+
+  .hero h2 {
+    font-size: clamp(1.55rem, 9vw, 2.25rem);
+    line-height: 1.02;
+  }
+
+  .hero-text {
+    font-size: 0.9rem;
+  }
+
+  .hero-mark {
+    padding: 0 18px 24px;
+  }
+
+  .hero-mark img {
+    width: min(150px, 46vw);
+  }
+
+  .panel {
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .participant-panel {
+    min-height: auto;
+  }
+
+  .participant-current {
+    padding: 18px;
+  }
+
+  .participant-name-only {
+    font-size: clamp(1.55rem, 9vw, 2.2rem);
+  }
+
+  .live-score {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .live-score strong {
+    font-size: 1.25rem;
+  }
+
+  .countdown-box {
+    padding: 16px;
+  }
+
+  .countdown-time {
+    font-size: 1.65rem;
+  }
+
+  .match-card {
+    padding: 15px;
+    border-radius: 14px;
+  }
+
+  .match-title {
+    font-size: 1.05rem;
+  }
+
+  .match-meta,
+  .match-countdown {
+    font-size: 0.82rem;
+  }
+
+  .guess-form {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .guess-form > div {
+    grid-column: 1 / -1;
+  }
+
+  .guess-form button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .guess-score input {
+    min-height: 52px;
+    font-size: 1.2rem;
+  }
+
+  .row-title .button-secondary {
+    width: 100%;
+  }
+
+  .rules-list {
+    font-size: 0.92rem;
+  }
+
+  .auth-container {
+    align-items: center;
+    padding: 14px;
+  }
+
+  .auth-card {
+    max-width: 100%;
+    border-radius: 20px;
+    padding: 28px 22px;
+  }
+
+  .auth-logo {
+    width: min(260px, 76vw);
+  }
+
+  .auth-brand {
+    margin-bottom: 24px;
+  }
+
+  .auth-form h2 {
+    font-size: 1.18rem;
+  }
+
+  .auth-form input {
+    min-height: 52px;
+    font-size: 1rem;
+  }
+
+  .auth-form button {
+    min-height: 54px;
+  }
+
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+  }
+
+  table {
+    min-width: 560px;
+  }
+
+  th,
+  td {
+    padding: 10px 8px;
+    font-size: 0.84rem;
   }
 }
