@@ -62,6 +62,75 @@ async function listParticipantGuesses(participantId) {
   return data || [];
 }
 
+async function listWorldCupTeams() {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("world_cup_teams")
+    .select("id, name, code, flag_url, flag_emoji, group_name")
+    .eq("active", true);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function listBrazilSquadPlayers() {
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("brazil_squad_players")
+    .select("id, name, position, photo_url")
+    .eq("active", true);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function getParticipantPrediction(participantId) {
+  if (!participantId) return null;
+
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("participant_predictions")
+    .select(`
+      *,
+      champion_team:world_cup_teams (
+        id,
+        name,
+        code,
+        flag_url,
+        flag_emoji,
+        group_name
+      ),
+      top_scorer_player:brazil_squad_players (
+        id,
+        name,
+        position,
+        photo_url
+      )
+    `)
+    .eq("participant_id", participantId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function saveParticipantPrediction(payload) {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("participant_predictions")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Erro ao salvar participant_predictions:", error);
+    throw error;
+  }
+
+  return data;
+}
+
 async function registerGuess(guess) {
   const client = getSupabaseClient();
   const { data, error } = await client
@@ -70,7 +139,8 @@ async function registerGuess(guess) {
       participant_id: guess.participant_id,
       match_id: guess.match_id,
       home_score_guess: Number(guess.home_score_guess),
-      away_score_guess: Number(guess.away_score_guess)
+      away_score_guess: Number(guess.away_score_guess),
+      updated_at: new Date().toISOString()
     }, { onConflict: "participant_id,match_id" })
     .select()
     .single();

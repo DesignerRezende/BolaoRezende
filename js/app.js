@@ -2,7 +2,15 @@ const state = {
   participant: null,
   matches: [],
   guesses: [],
-  guessCounts: {}
+  guessCounts: {},
+  worldCupTeams: [],
+  brazilPlayers: [],
+  cupPick: null,
+  participantPrediction: null,
+  predictionStep: 1,
+  selectedChampionTeamId: null,
+  selectedTopScorerPlayerId: null,
+  matchFilter: "todos"
 };
 
 const participantForm = document.querySelector("#participant-form");
@@ -11,8 +19,16 @@ const matchesList = document.querySelector("#matches-list");
 const liveBox = document.querySelector("#live-box");
 const refreshButton = document.querySelector("#refresh-button");
 const toast = document.querySelector("#toast");
+const predictionModal = document.querySelector("#prediction-modal");
+const predictionStepLabel = document.querySelector("#prediction-step-label");
+const predictionTitle = document.querySelector("#prediction-title");
+const predictionSubtitle = document.querySelector("#prediction-subtitle");
+const predictionGrid = document.querySelector("#prediction-grid");
+const predictionBackButton = document.querySelector("#prediction-back-button");
+const predictionNextButton = document.querySelector("#prediction-next-button");
 
 const GUESS_CLOSE_MINUTES_BEFORE_MATCH = 20;
+let countdownTimer = null;
 
 if (participantForm) {
   participantForm.addEventListener("submit", handleParticipantSubmit);
@@ -20,6 +36,27 @@ if (participantForm) {
 
 if (refreshButton) {
   refreshButton.addEventListener("click", loadDashboard);
+}
+
+document.querySelectorAll("[data-match-filter]").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.matchFilter = button.dataset.matchFilter || "todos";
+    document.querySelectorAll("[data-match-filter]").forEach((item) => {
+      item.classList.toggle("is-active", item === button);
+    });
+    renderMatches();
+  });
+});
+
+if (predictionBackButton) {
+  predictionBackButton.addEventListener("click", handlePredictionBack);
+}
+
+if (predictionNextButton) {
+  predictionNextButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    handlePredictionNext();
+  });
 }
 
 async function initApp() {
@@ -37,7 +74,7 @@ async function createOrUpdateParticipantFromEmployee() {
   const employee = getCurrentEmployee();
 
   if (!employee) {
-    showToast("Funcionário não identificado. Faça login novamente.");
+    showToast("Funcionario nao identificado. Faca login novamente.");
     return;
   }
 
@@ -91,12 +128,12 @@ function hideParticipantForm() {
 }
 
 function loadSavedParticipant() {
-  // Não usado. O participante vem do login por CPF.
+  // Nao usado. O participante vem do login por CPF.
 }
 
 async function handleParticipantSubmit(event) {
   event.preventDefault();
-  showToast("O cadastro agora é feito automaticamente pelo CPF.");
+  showToast("O cadastro agora e feito automaticamente pelo CPF.");
 }
 
 function showCurrentParticipant() {
@@ -107,11 +144,59 @@ function showCurrentParticipant() {
   participantCurrent.hidden = false;
   participantCurrent.style.display = "block";
 
+  const champion = getSelectedTeam();
+  const scorer = getSelectedPlayer();
+  const hasPrediction = Boolean(state.cupPick);
+
   participantCurrent.innerHTML = `
     <div class="participant-name-only">
       ${escapeHtml(state.participant.name)}
     </div>
+    ${hasPrediction ? `
+      <div class="participant-picks">
+        <div>
+          <span>Meu campe\u00e3o:</span>
+          <strong>${renderFlag(champion)} ${escapeHtml(getTeamCode(champion))} · ${escapeHtml(getTeamName(champion))}</strong>
+        </div>
+        <div>
+          <span>Meu artilheiro:</span>
+          <strong>${escapeHtml(getPlayerName(scorer))} · ${escapeHtml(getPlayerPosition(scorer))}</strong>
+        </div>
+        <div>
+          <span>Escolhido em:</span>
+          <strong>${formatDateSentence(getPredictionDate(state.cupPick))}</strong>
+        </div>
+      </div>
+    ` : `
+      <div class="participant-picks">
+        <div>
+          <span>Primeiro acesso</span>
+          <strong>Complete o popup de campe\u00e3o e artilheiro para continuar.</strong>
+        </div>
+      </div>
+    `}
   `;
+}
+
+async function loadCupPredictionData() {
+  try {
+    const [teams, players, pick] = await Promise.all([
+      listWorldCupTeams(),
+      listBrazilSquadPlayers(),
+      getParticipantPrediction(state.participant?.id)
+    ]);
+
+    state.worldCupTeams = teams.sort(sortTeamsForPrediction);
+    state.brazilPlayers = players.sort((a, b) => getPlayerName(a).localeCompare(getPlayerName(b), "pt-BR"));
+    state.cupPick = pick;
+    state.participantPrediction = pick;
+  } catch (error) {
+    console.error("Erro ao carregar palpites especiais:", error);
+    state.worldCupTeams = [];
+    state.brazilPlayers = [];
+    state.cupPick = null;
+    state.participantPrediction = null;
+  }
 }
 
 async function loadDashboard() {
@@ -119,15 +204,19 @@ async function loadDashboard() {
     state.matches = await listMatches();
     state.guessCounts = await getGuessCounts();
     state.guesses = await listParticipantGuesses(state.participant?.id);
+    await loadCupPredictionData();
 
+    showCurrentParticipant();
     renderLiveBox();
     renderMatches();
+    startCountdowns();
     await renderRanking();
+    maybeOpenPredictionModal();
   } catch (error) {
     console.error("Erro ao carregar dashboard:", error);
 
     if (matchesList) {
-      matchesList.innerHTML = '<p class="empty">Não foi possível carregar os jogos. Confira o Supabase.</p>';
+      matchesList.innerHTML = '<p class="empty">Nao foi possivel carregar os jogos. Confira o Supabase.</p>';
     }
 
     if (liveBox) {
@@ -150,7 +239,7 @@ function renderLiveBox() {
   const match = liveMatch || nextMatch || state.matches[state.matches.length - 1];
 
   const closed = isGuessClosed(match);
-  const countdown = getCountdownText(match.match_date);
+  const countdown = getCountdownText(match);
   const closeTime = getGuessCloseDate(match);
 
   liveBox.innerHTML = `
@@ -163,12 +252,12 @@ function renderLiveBox() {
       <span class="countdown-label">${closed ? "Palpites encerrados" : "Tempo restante"}</span>
       <strong class="countdown-time">${countdown}</strong>
       <span class="countdown-sub">
-        ${closed ? "Os palpites deste jogo já foram fechados." : `Palpites até ${formatTime(closeTime)}`}
+        ${closed ? "Os palpites deste jogo j\u00e1 foram fechados." : `Palpites abertos at\u00e9 ${formatTime(closeTime)}`}
       </span>
     </div>
 
     <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
-    <p>${formatDate(match.match_date)} • ${escapeHtml(match.phase || "Fase não informada")}</p>
+    <p>${formatDate(match.match_date)} - ${escapeHtml(match.phase || "Fase nao informada")}</p>
     <p><strong>${state.guessCounts[match.id] || 0}</strong> palpites registrados</p>
   `;
 }
@@ -181,44 +270,72 @@ function renderMatches() {
     return;
   }
 
-  matchesList.innerHTML = state.matches.map((match) => {
+  const matches = getFilteredMatches();
+
+  if (!matches.length) {
+    matchesList.innerHTML = '<p class="empty">Nenhum jogo encontrado neste filtro.</p>';
+    return;
+  }
+
+  matchesList.innerHTML = matches.map((match) => {
     const locked = isGuessClosed(match);
     const savedGuess = state.guesses.find((guess) => guess.match_id === match.id);
     const disabled = !state.participant || locked ? "disabled" : "";
     const buttonText = savedGuess ? "Atualizar palpite" : "Salvar palpite";
     const closeTime = getGuessCloseDate(match);
+    const guessTimestamp = savedGuess?.updated_at || savedGuess?.created_at;
+    const guessAction = getGuessAction(savedGuess);
+    const homeTeam = findWorldCupTeamByName(match.home_team);
+    const awayTeam = findWorldCupTeamByName(match.away_team);
 
     return `
-      <article class="match-card">
+      <article class="match-card" data-locked="${locked}">
         <div class="match-header">
           <div>
-            <div class="match-title">${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</div>
-            <div class="match-meta">${formatDate(match.match_date)} • ${escapeHtml(match.phase || "Fase não informada")}</div>
+            <div class="match-meta">${escapeHtml(match.phase || "Fase nao informada")}</div>
+            <div class="match-timer" data-countdown-match-id="${match.id}">${getCountdownText(match)}</div>
             <div class="match-countdown">
-              ${locked ? "Palpites encerrados" : `Palpites até ${formatTime(closeTime)}`}
+              ${locked ? "Palpites encerrados" : `Palpites abertos at\u00e9 ${formatTime(closeTime)}`}
             </div>
           </div>
 
           <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
         </div>
 
+        ${savedGuess ? `
+          <div class="saved-guess">
+            <strong>Seu palpite: ${escapeHtml(match.home_team)} ${savedGuess.home_score_guess} x ${savedGuess.away_score_guess} ${escapeHtml(match.away_team)}</strong>
+            <span>${guessAction} em ${formatDateSentence(guessTimestamp)}</span>
+          </div>
+        ` : ""}
+
         <form class="guess-form" data-match-id="${match.id}">
-          <div>
-            <strong>Placar real:</strong> ${formatScore(match)}<br>
-            <span>${state.guessCounts[match.id] || 0} palpites</span>
+          <div class="match-team">
+            <span class="match-team__flag">${renderMatchFlag(homeTeam, match.home_team)}</span>
+            <strong>${escapeHtml(getMatchTeamCode(homeTeam, match.home_team))}</strong>
+            <span>${escapeHtml(match.home_team)}</span>
           </div>
 
-          <label class="guess-score">
-            Brasil
+          <label class="guess-score" aria-label="${escapeHtml(match.home_team)}">
             <input type="number" min="0" name="home_score_guess" value="${savedGuess?.home_score_guess ?? ""}" ${disabled} required>
           </label>
 
-          <label class="guess-score">
-            Rival
+          <span class="match-versus">:</span>
+
+          <label class="guess-score" aria-label="${escapeHtml(match.away_team)}">
             <input type="number" min="0" name="away_score_guess" value="${savedGuess?.away_score_guess ?? ""}" ${disabled} required>
           </label>
 
-          <button type="submit" ${disabled}>${locked ? "Fechado" : buttonText}</button>
+          <div class="match-team">
+            <span class="match-team__flag">${renderMatchFlag(awayTeam, match.away_team)}</span>
+            <strong>${escapeHtml(getMatchTeamCode(awayTeam, match.away_team))}</strong>
+            <span>${escapeHtml(match.away_team)}</span>
+          </div>
+
+          <div class="match-card__footer">
+            <span>${formatDate(match.match_date)} &middot; ${state.guessCounts[match.id] || 0} palpites</span>
+            <button type="submit" ${disabled}>${locked ? "Fechado" : buttonText}</button>
+          </div>
         </form>
       </article>
     `;
@@ -229,11 +346,235 @@ function renderMatches() {
   });
 }
 
+function getFilteredMatches() {
+  const now = new Date();
+
+  return state.matches.filter((match) => {
+    const status = String(match.status || "aberto").toLowerCase();
+    const matchDate = new Date(match.match_date);
+
+    if (state.matchFilter === "ao vivo") return status === "ao vivo";
+    if (state.matchFilter === "encerrado") return status === "encerrado";
+    if (state.matchFilter === "proximos") return status !== "encerrado" && matchDate >= now;
+
+    return true;
+  });
+}
+
+function maybeOpenPredictionModal() {
+  if (!state.participant || state.cupPick) return;
+  if (!state.worldCupTeams.length || !state.brazilPlayers.length) return;
+  openPredictionModal();
+}
+
+function openPredictionModal() {
+  if (!predictionModal) return;
+  if (state.cupPick) {
+    closePredictionModal();
+    showToast("Suas escolhas ja foram confirmadas.");
+    return;
+  }
+
+  state.predictionStep = 1;
+  state.selectedChampionTeamId = null;
+  state.selectedTopScorerPlayerId = null;
+  predictionModal.hidden = false;
+  predictionModal.style.display = "";
+  document.body.classList.add("modal-open");
+  renderPredictionStep();
+}
+
+function closePredictionModal() {
+  if (!predictionModal) return;
+
+  predictionModal.hidden = true;
+  predictionModal.style.display = "none";
+  document.body.classList.remove("modal-open");
+}
+
+function renderPredictionStep() {
+  if (!predictionGrid || !predictionTitle || !predictionStepLabel || !predictionNextButton) return;
+
+  const isTeamStep = state.predictionStep === 1;
+  predictionStepLabel.textContent = isTeamStep ? "1 de 2" : "2 de 2";
+  predictionTitle.textContent = isTeamStep ? "Quem vai ganhar a Copa?" : "Quem sera o artilheiro do Brasil?";
+  predictionSubtitle.textContent = "Primeiro acesso: confirme com calma. Depois de salvar, nao podera alterar pelo site.";
+  predictionBackButton.hidden = isTeamStep;
+  predictionNextButton.textContent = isTeamStep ? "Continuar" : "Confirmar escolhas";
+  predictionNextButton.disabled = isTeamStep ? !state.selectedChampionTeamId : !state.selectedTopScorerPlayerId;
+
+  predictionGrid.className = `prediction-grid ${isTeamStep ? "prediction-grid--teams" : "prediction-grid--players"}`;
+  predictionGrid.innerHTML = isTeamStep ? renderTeamCards() : renderPlayerCards();
+
+  predictionGrid.querySelectorAll("[data-prediction-id]").forEach((card) => {
+    card.addEventListener("click", () => {
+      if (isTeamStep) {
+        state.selectedChampionTeamId = card.dataset.predictionId;
+      } else {
+        state.selectedTopScorerPlayerId = card.dataset.predictionId;
+      }
+
+      renderPredictionStep();
+    });
+  });
+}
+
+function renderTeamCards() {
+  if (!state.worldCupTeams.length) {
+    return '<p class="empty">Cadastre as selecoes em world_cup_teams para liberar esta escolha.</p>';
+  }
+
+  return state.worldCupTeams.map((team) => {
+    const selected = String(team.id) === String(state.selectedChampionTeamId);
+    const highlighted = isBrazilTeam(team);
+    const code = getTeamCode(team);
+    const group = getTeamGroup(team);
+
+    return `
+      <button class="prediction-card prediction-card--team ${highlighted ? "is-highlighted" : ""} ${selected ? "is-selected" : ""}" type="button" data-prediction-id="${escapeHtml(team.id)}">
+        <span class="prediction-flag">${renderFlag(team)}</span>
+        <span class="prediction-code">${escapeHtml(code)}</span>
+        <strong>${escapeHtml(getTeamName(team))}</strong>
+        ${group ? `<span class="prediction-meta">${escapeHtml(group)}</span>` : ""}
+      </button>
+    `;
+  }).join("");
+}
+
+function renderPlayerCards() {
+  if (!state.brazilPlayers.length) {
+    return '<p class="empty">Cadastre os jogadores em brazil_squad_players para liberar esta escolha.</p>';
+  }
+
+  return state.brazilPlayers.map((player) => {
+    const selected = String(player.id) === String(state.selectedTopScorerPlayerId);
+
+    return `
+      <button class="prediction-card prediction-card--player ${selected ? "is-selected" : ""}" type="button" data-prediction-id="${escapeHtml(player.id)}">
+        <span class="prediction-player-photo">${renderPlayerPhoto(player)}</span>
+        <strong>${escapeHtml(getPlayerName(player))}</strong>
+        <span class="prediction-meta">${escapeHtml(getPlayerPosition(player))}</span>
+        <span class="prediction-tag">Sele\u00e7\u00e3o Brasileira</span>
+      </button>
+    `;
+  }).join("");
+}
+
+function handlePredictionBack() {
+  state.predictionStep = 1;
+  renderPredictionStep();
+}
+
+async function handlePredictionNext() {
+  if (predictionNextButton?.dataset.loading === "true") return;
+
+  if (state.predictionStep === 1) {
+    if (!state.selectedChampionTeamId) return;
+    state.predictionStep = 2;
+    renderPredictionStep();
+    return;
+  }
+
+  if (!state.selectedChampionTeamId) {
+    showToast("Escolha uma seleção campeã.");
+    return;
+  }
+
+  if (!state.selectedTopScorerPlayerId) {
+    showToast("Escolha um artilheiro.");
+    return;
+  }
+
+  if (!state.participant) return;
+
+  const selectedChampion = getSelectedTeam();
+  const selectedTopScorer = getSelectedPlayer();
+  const payload = {
+    participant_id: state.participant.id,
+    champion_team_id: state.selectedChampionTeamId,
+    top_scorer_player_id: state.selectedTopScorerPlayerId,
+    selected_at: new Date().toISOString()
+  };
+
+  console.log("Confirmando escolhas");
+  console.log("Campeão selecionado:", selectedChampion);
+  console.log("Artilheiro selecionado:", selectedTopScorer);
+  console.log("Payload participant_predictions:", payload);
+
+  try {
+    predictionNextButton.dataset.loading = "true";
+    predictionNextButton.disabled = true;
+    predictionNextButton.textContent = "Salvando...";
+
+    const result = await saveParticipantPrediction(payload);
+    console.log("Resultado saveParticipantPrediction:", result);
+
+    state.cupPick = await getParticipantPrediction(state.participant.id) || result;
+    state.participantPrediction = state.cupPick;
+
+    closePredictionModal();
+    showCurrentParticipant();
+    goToGuessesSection();
+    showToast("Escolhas salvas com sucesso.");
+  } catch (error) {
+    console.error("Erro ao confirmar escolhas:", error);
+
+    const alreadyConfirmed =
+      error?.code === "23505" ||
+      String(error?.message || "").toLowerCase().includes("duplicate") ||
+      String(error?.message || "").toLowerCase().includes("unique");
+
+    const message = alreadyConfirmed
+      ? "Você já confirmou suas escolhas. Elas não podem ser alteradas."
+      : (error.message || "Nao foi possivel confirmar as escolhas.");
+
+    showToast(message);
+    renderPredictionStep();
+    showPredictionError(message);
+
+    if (predictionSubtitle) {
+      predictionSubtitle.textContent = message;
+    }
+  } finally {
+    if (predictionNextButton) {
+      predictionNextButton.dataset.loading = "false";
+      predictionNextButton.disabled = false;
+      predictionNextButton.textContent = "Confirmar escolhas";
+    }
+  }
+}
+
+function goToGuessesSection() {
+  const target = document.querySelector("#guesses-section") || matchesList?.closest(".panel") || matchesList;
+  if (!target) return;
+
+  window.location.hash = "guesses-section";
+
+  window.setTimeout(() => {
+    target.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }, 120);
+}
+
+function showPredictionError(message) {
+  if (!predictionGrid) return;
+
+  const existingError = predictionGrid.querySelector(".prediction-error");
+  if (existingError) existingError.remove();
+
+  const visibleError = document.createElement("div");
+  visibleError.className = "prediction-error";
+  visibleError.textContent = message;
+  predictionGrid.prepend(visibleError);
+}
+
 async function handleGuessSubmit(event) {
   event.preventDefault();
 
   if (!state.participant) {
-    showToast("Faça login antes de palpitar.");
+    showToast("Faca login antes de palpitar.");
     return;
   }
 
@@ -241,12 +582,12 @@ async function handleGuessSubmit(event) {
   const match = state.matches.find((item) => item.id === form.dataset.matchId);
 
   if (!match) {
-    showToast("Jogo não encontrado.");
+    showToast("Jogo nao encontrado.");
     return;
   }
 
   if (isGuessClosed(match)) {
-    showToast("Palpites encerrados. O prazo fecha 20 minutos antes do jogo.");
+    showToast("O prazo para este palpite encerrou 20 minutos antes do jogo.");
     await loadDashboard();
     return;
   }
@@ -268,9 +609,9 @@ async function handleGuessSubmit(event) {
     await loadDashboard();
   } catch (error) {
     console.error("Erro ao salvar palpite:", error);
-    showToast("Não foi possível salvar o palpite.");
+    showToast("Nao foi possivel salvar o palpite.");
   } finally {
-    if (button) button.disabled = false;
+    if (button && !isGuessClosed(match)) button.disabled = false;
   }
 }
 
@@ -300,15 +641,66 @@ function getGuessCloseDate(match) {
   return new Date(matchDate.getTime() - GUESS_CLOSE_MINUTES_BEFORE_MATCH * 60 * 1000);
 }
 
-function getCountdownText(value) {
-  if (!value) return "Data não informada";
+function startCountdowns() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+  }
 
-  const matchDate = new Date(value);
+  updateCountdowns();
+  countdownTimer = setInterval(updateCountdowns, 1000);
+}
+
+function updateCountdowns() {
+  if (!state.matches.length) return;
+
+  renderLiveBox();
+
+  document.querySelectorAll("[data-countdown-match-id]").forEach((element) => {
+    const match = state.matches.find((item) => item.id === element.dataset.countdownMatchId);
+    if (!match) return;
+
+    element.textContent = getCountdownText(match);
+
+    const card = element.closest(".match-card");
+    const locked = isGuessClosed(match);
+    if (!card || card.dataset.locked === String(locked)) return;
+
+    const form = card.querySelector(".guess-form");
+    const countdown = card.querySelector(".match-countdown");
+    const button = form?.querySelector("button");
+
+    card.dataset.locked = String(locked);
+
+    if (countdown) {
+      countdown.textContent = locked ? "Palpites encerrados" : `Palpites abertos at\u00e9 ${formatTime(getGuessCloseDate(match))}`;
+    }
+
+    form?.querySelectorAll("input").forEach((input) => {
+      input.disabled = locked;
+    });
+
+    if (button) {
+      button.disabled = locked;
+      if (locked) button.textContent = "Fechado";
+    }
+  });
+}
+
+function getCountdownText(match) {
+  if (!match?.match_date) return "Data nao informada";
+
+  const status = String(match.status || "aberto").toLowerCase();
+
+  if (status === "encerrado") {
+    return "Jogo encerrado";
+  }
+
+  const matchDate = new Date(match.match_date);
   const now = new Date();
   const diff = matchDate.getTime() - now.getTime();
 
   if (Number.isNaN(matchDate.getTime())) {
-    return "Data inválida";
+    return "Data invalida";
   }
 
   if (diff <= 0) {
@@ -322,14 +714,14 @@ function getCountdownText(value) {
   const seconds = totalSeconds % 60;
 
   if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`;
+    return `Faltam ${days}d ${pad2(hours)}h ${pad2(minutes)}m`;
   }
 
-  return `${hours}h ${minutes}m ${seconds}s`;
+  return `Faltam ${pad2(hours)}h ${pad2(minutes)}m ${pad2(seconds)}s`;
 }
 
 function formatDate(value) {
-  if (!value) return "Data não informada";
+  if (!value) return "Data nao informada";
 
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
@@ -338,12 +730,166 @@ function formatDate(value) {
 }
 
 function formatTime(value) {
-  if (!value) return "horário não informado";
+  if (!value) return "horario nao informado";
 
   return new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatDateSentence(value) {
+  if (!value) return "data nao informada";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value)).replace(",", " \u00e0s");
+}
+
+function getGuessAction(guess) {
+  if (!guess?.updated_at || !guess?.created_at) {
+    return "Registrado";
+  }
+
+  const createdAt = new Date(guess.created_at).getTime();
+  const updatedAt = new Date(guess.updated_at).getTime();
+
+  if (Number.isNaN(createdAt) || Number.isNaN(updatedAt)) {
+    return "Registrado";
+  }
+
+  return Math.abs(updatedAt - createdAt) > 2000 ? "Atualizado" : "Registrado";
+}
+
+function getSelectedTeam() {
+  const id = state.cupPick?.champion_team_id || state.selectedChampionTeamId;
+  if (state.cupPick?.champion_team) return state.cupPick.champion_team;
+  return state.worldCupTeams.find((team) => String(team.id) === String(id));
+}
+
+function getPredictionDate(pick) {
+  return pick?.selected_at || pick?.created_at || pick?.updated_at;
+}
+
+function getSelectedPlayer() {
+  const id = state.cupPick?.top_scorer_player_id || state.selectedTopScorerPlayerId;
+  if (state.cupPick?.top_scorer_player) return state.cupPick.top_scorer_player;
+  return state.brazilPlayers.find((player) => String(player.id) === String(id));
+}
+
+function findWorldCupTeamByName(name) {
+  const normalized = normalizeText(name);
+  return state.worldCupTeams.find((team) => normalizeText(getTeamName(team)) === normalized);
+}
+
+function getTeamName(team) {
+  return getFirstField(team, ["name", "team_name", "country", "selection_name"]) || "Selecao";
+}
+
+function sortTeamsForPrediction(a, b) {
+  const aIsBrazil = isBrazilTeam(a);
+  const bIsBrazil = isBrazilTeam(b);
+
+  if (aIsBrazil && !bIsBrazil) return -1;
+  if (!aIsBrazil && bIsBrazil) return 1;
+
+  return getTeamName(a).localeCompare(getTeamName(b), "pt-BR");
+}
+
+function isBrazilTeam(team) {
+  const name = getTeamName(team).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const code = getTeamCode(team).toUpperCase();
+
+  return name === "brasil" || name === "brazil" || code === "BRA";
+}
+
+function getTeamCode(team) {
+  return String(getFirstField(team, ["fifa_code", "code", "abbreviation", "slug"]) || "").toUpperCase();
+}
+
+function getMatchTeamCode(team, fallback) {
+  return getTeamCode(team) || String(fallback || "").slice(0, 3).toUpperCase();
+}
+
+function getTeamGroup(team) {
+  const group = getFirstField(team, ["group_name", "group", "cup_group"]);
+  if (!group) return "";
+
+  return String(group).toLowerCase().includes("grupo") ? String(group) : `Grupo ${group}`;
+}
+
+function getPlayerName(player) {
+  return getFirstField(player, ["name", "player_name", "display_name", "nickname"]) || "Jogador";
+}
+
+function getPlayerPosition(player) {
+  return getFirstField(player, ["position", "role"]) || "Selecao Brasileira";
+}
+
+function renderPlayerPhoto(player) {
+  const photoUrl = getFirstField(player, ["photo_url", "image_url", "avatar_url", "headshot_url", "picture_url"]);
+
+  if (photoUrl) {
+    return `<img src="${escapeHtml(photoUrl)}" alt="">`;
+  }
+
+  return `<span>${escapeHtml(getInitials(getPlayerName(player)))}</span>`;
+}
+
+function getInitials(value) {
+  return String(value || "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || "")
+    .join("")
+    .toUpperCase();
+}
+
+function renderFlag(team) {
+  const flagUrl = getFirstField(team, ["flag_url"]);
+  const flagValue = getFirstField(team, ["flag_emoji"]);
+
+  if (flagUrl) {
+    return `<img src="${escapeHtml(flagUrl)}" alt="">`;
+  }
+
+  return escapeHtml(flagValue || "\uD83C\uDFC6");
+}
+
+function renderMatchFlag(team, fallbackName) {
+  if (team) return renderFlag(team);
+
+  return `<span>${escapeHtml(getInitials(fallbackName))}</span>`;
+}
+
+function getTwoLetterCode(code) {
+  const normalized = String(code || "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(normalized) ? normalized : "";
+}
+
+function getFirstField(source, fields) {
+  if (!source) return "";
+
+  for (const field of fields) {
+    if (source[field] !== undefined && source[field] !== null && source[field] !== "") {
+      return source[field];
+    }
+  }
+
+  return "";
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function formatScore(match) {
@@ -355,6 +901,10 @@ function formatScore(match) {
 function statusClass(status) {
   const normalized = (status || "aberto").toLowerCase().replace(/\s/g, "-");
   return `status-${normalized}`;
+}
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
 }
 
 function showToast(message) {

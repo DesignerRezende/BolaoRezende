@@ -41,13 +41,29 @@ create table if not exists guesses (
   away_score_guess integer not null,
   points integer default 0,
   created_at timestamp default now(),
+  updated_at timestamp with time zone default now(),
   unique(participant_id, match_id)
 );
+
+alter table guesses
+  add column if not exists updated_at timestamp with time zone default now();
+
+create table if not exists participant_predictions (
+  id uuid primary key default gen_random_uuid(),
+  participant_id uuid references participants(id) on delete cascade unique not null,
+  champion_team_id uuid references world_cup_teams(id),
+  top_scorer_player_id uuid references brazil_squad_players(id),
+  selected_at timestamp with time zone default now()
+);
+
+alter table brazil_squad_players
+  add column if not exists photo_url text;
 
 alter table participants enable row level security;
 alter table matches enable row level security;
 alter table guesses enable row level security;
 alter table authorized_employees enable row level security;
+alter table participant_predictions enable row level security;
 
 drop policy if exists "Public read participants" on participants;
 drop policy if exists "Public insert participants" on participants;
@@ -55,6 +71,8 @@ drop policy if exists "Public read matches" on matches;
 drop policy if exists "Public read guesses" on guesses;
 drop policy if exists "Public insert guesses" on guesses;
 drop policy if exists "Public update guesses" on guesses;
+drop policy if exists "Public read predictions" on participant_predictions;
+drop policy if exists "Public insert predictions" on participant_predictions;
 
 create policy "Public read participants"
   on participants for select
@@ -79,6 +97,14 @@ create policy "Public insert guesses"
 create policy "Public update guesses"
   on guesses for update
   using (true)
+  with check (true);
+
+create policy "Public read predictions"
+  on participant_predictions for select
+  using (true);
+
+create policy "Public insert predictions"
+  on participant_predictions for insert
   with check (true);
 
 -- Função RPC para validar CPF de funcionário
