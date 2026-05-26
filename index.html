@@ -17,7 +17,7 @@
   <div id="auth-container" class="auth-container">
     <div class="auth-card">
       <div class="auth-brand">
-        <img src="assets/logo-rezende-brasil.png" alt="Rezende" class="auth-logo">
+        <img src="assets/assets/logo-rezende-brasil.png" alt="Rezende" class="auth-logo">
         <span>Bolão Copa 2026</span>
       </div>
 
@@ -48,7 +48,7 @@
     <header class="topbar">
       <div class="topbar__inner">
         <div class="topbar-brand">
-          <img src="assets/logo-rezende-brasil.png" alt="Rezende" class="topbar-logo">
+          <img src="assets/assets/logo-rezende-brasil.png" alt="Rezende" class="topbar-logo">
           <div>
             <p class="eyebrow">Palpites internos</p>
             <h1>Bolão Copa 2026</h1>
@@ -71,7 +71,7 @@
         </div>
 
         <div class="hero-mark">
-          <img src="assets/logo-rezende-icon.png" alt="Rezende Brasil">
+          <img src="assets/assets/logo-rezende-icon.png" alt="Rezende Brasil">
         </div>
       </section>
 
@@ -177,6 +177,30 @@
   </div>
 
   <div id="toast" class="toast" hidden></div>
+
+  <!-- Modal de Predictions -->
+  <div id="prediction-modal" class="prediction-modal" hidden>
+    <div class="prediction-modal__overlay"></div>
+    <div class="prediction-modal__dialog">
+      <div class="prediction-modal__header">
+        <div>
+          <div class="prediction-step-label" id="prediction-step-label">1 de 2</div>
+          <h2 id="prediction-title">Quem vai ganhar a Copa?</h2>
+          <p id="prediction-subtitle">Primeiro acesso: confirme com calma. Depois de salvar, não poderá alterar pelo site.</p>
+        </div>
+        <button class="prediction-modal__close" type="button" disabled hidden></button>
+      </div>
+
+      <div id="prediction-grid" class="prediction-grid prediction-grid--teams"></div>
+
+      <div id="prediction-error" class="prediction-error" hidden></div>
+
+      <div class="prediction-modal__footer">
+        <button id="prediction-back-button" class="button-secondary" type="button" hidden>Voltar</button>
+        <button id="prediction-next-button" class="button-primary" type="button">Continuar</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/config.js"></script>
   <script src="js/supabase.js"></script>

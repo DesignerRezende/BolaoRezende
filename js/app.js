@@ -61,13 +61,36 @@ if (predictionNextButton) {
   });
 }
 
+if (predictionModal) {
+  const overlay = predictionModal.querySelector(".prediction-modal__overlay");
+  if (overlay) {
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        // Não permite fechar clicando fora se não há prediction
+      }
+    });
+  }
+}
+
 async function initApp() {
+  console.log("initApp iniciou");
+  
   await createOrUpdateParticipantFromEmployee();
 
   if (!state.participant) {
     showToast("Erro ao carregar dados do participante.");
     return;
   }
+
+  console.log("Participant atual:", state.participant);
+
+  await loadCupPredictionData();
+  showCurrentParticipant();
+  
+  console.log("Verificando prediction para:", state.participant?.id);
+  console.log("Prediction encontrada:", state.participantPrediction);
+  
+  maybeOpenPredictionModal();
 
   await loadDashboard();
 }
@@ -148,7 +171,7 @@ function showCurrentParticipant() {
 
   const champion = getSelectedTeam();
   const scorer = getSelectedPlayer();
-  const hasPrediction = Boolean(state.cupPick);
+  const hasPrediction = Boolean(state.participantPrediction);
 
   participantCurrent.innerHTML = `
     <div class="participant-name-only">
@@ -157,7 +180,7 @@ function showCurrentParticipant() {
     ${hasPrediction ? `
       <div class="participant-picks">
         <div>
-          <span>Meu campe\u00e3o:</span>
+          <span>Meu campeão:</span>
           <strong>${renderFlag(champion)} ${escapeHtml(getTeamCode(champion))} · ${escapeHtml(getTeamName(champion))}</strong>
         </div>
         <div>
@@ -166,14 +189,14 @@ function showCurrentParticipant() {
         </div>
         <div>
           <span>Escolhido em:</span>
-          <strong>${formatDateSentence(getPredictionDate(state.cupPick))}</strong>
+          <strong>${formatDateSentence(getPredictionDate(state.participantPrediction))}</strong>
         </div>
       </div>
     ` : `
       <div class="participant-picks">
         <div>
           <span>Primeiro acesso</span>
-          <strong>Complete o popup de campe\u00e3o e artilheiro para continuar.</strong>
+          <strong>Complete o popup de campeão e artilheiro para continuar.</strong>
         </div>
       </div>
     `}
@@ -182,6 +205,8 @@ function showCurrentParticipant() {
 
 async function loadCupPredictionData() {
   try {
+    console.log("Carregando dados de palpites especiais para participante:", state.participant?.id);
+    
     const [teams, players, pick] = await Promise.all([
       listWorldCupTeams(),
       listBrazilSquadPlayers(),
@@ -190,13 +215,13 @@ async function loadCupPredictionData() {
 
     state.worldCupTeams = teams.sort(sortTeamsForPrediction);
     state.brazilPlayers = players.sort((a, b) => getPlayerName(a).localeCompare(getPlayerName(b), "pt-BR"));
-    state.cupPick = pick;
     state.participantPrediction = pick;
+    
+    console.log("Dados carregados - Teams:", state.worldCupTeams.length, "Players:", state.brazilPlayers.length, "Prediction:", pick);
   } catch (error) {
     console.error("Erro ao carregar palpites especiais:", error);
     state.worldCupTeams = [];
     state.brazilPlayers = [];
-    state.cupPick = null;
     state.participantPrediction = null;
   }
 }
@@ -364,14 +389,18 @@ function getFilteredMatches() {
 }
 
 function maybeOpenPredictionModal() {
-  if (!state.participant || state.cupPick) return;
-  if (!state.worldCupTeams.length || !state.brazilPlayers.length) return;
+  console.log("Abrindo popup de primeiro acesso");
+  
+  if (!state.participant || state.participantPrediction) {
+    return;
+  }
+  
   openPredictionModal();
 }
 
 function openPredictionModal() {
   if (!predictionModal) return;
-  if (state.cupPick) {
+  if (state.participantPrediction) {
     closePredictionModal();
     showToast("Suas escolhas ja foram confirmadas.");
     return;
@@ -401,8 +430,14 @@ function renderPredictionStep() {
 
   const isTeamStep = state.predictionStep === 1;
   predictionStepLabel.textContent = isTeamStep ? "1 de 2" : "2 de 2";
-  predictionTitle.textContent = isTeamStep ? "Quem vai ganhar a Copa?" : "Quem sera o artilheiro do Brasil?";
-  predictionSubtitle.textContent = "Primeiro acesso: confirme com calma. Depois de salvar, nao podera alterar pelo site.";
+  predictionTitle.textContent = isTeamStep ? "Quem vai ganhar a Copa?" : "Quem será o artilheiro do Brasil?";
+  
+  if (isTeamStep) {
+    predictionSubtitle.textContent = "Essa escolha será usada como critério de desempate e não poderá ser alterada.";
+  } else {
+    predictionSubtitle.textContent = "Essa escolha também será usada como critério de desempate e não poderá ser alterada.";
+  }
+  
   predictionBackButton.hidden = isTeamStep;
   predictionNextButton.textContent = isTeamStep ? "Continuar" : "Confirmar escolhas";
   predictionNextButton.disabled = isTeamStep ? !state.selectedChampion : !state.selectedTopScorer;
@@ -480,89 +515,6 @@ async function handlePredictionNext() {
       showToast("Escolha uma seleção campeã para continuar.");
       return;
     }
-    state.predictionStep = 2;
-    renderPredictionStep();
-    return;
-  }
-
-  if (!state.selectedChampionTeamId) {
-    showToast("Escolha uma seleção campeã.");
-    return;
-  }
-
-  if (!state.selectedTopScorerPlayerId) {
-    showToast("Escolha um artilheiro.");
-    return;
-  }
-
-  if (!state.participant) return;
-
-  const selectedChampion = getSelectedTeam();
-  const selectedTopScorer = getSelectedPlayer();
-  const payload = {
-    participant_id: state.participant.id,
-    champion_team_id: state.selectedChampionTeamId,
-    top_scorer_player_id: state.selectedTopScorerPlayerId,
-    selected_at: new Date().toISOString()
-  };
-
-  console.log("Confirmando escolhas");
-  console.log("Campeão selecionado:", selectedChampion);
-  console.log("Artilheiro selecionado:", selectedTopScorer);
-  console.log("Payload participant_predictions:", payload);
-
-  try {
-    predictionNextButton.dataset.loading = "true";
-    predictionNextButton.disabled = true;
-    predictionNextButton.textContent = "Salvando...";
-
-    const result = await saveParticipantPrediction(payload);
-    console.log("Resultado saveParticipantPrediction:", result);
-
-    state.cupPick = await getParticipantPrediction(state.participant.id) || result;
-    state.participantPrediction = state.cupPick;
-
-    closePredictionModal();
-    showCurrentParticipant();
-    goToGuessesSection();
-    showToast("Escolhas salvas com sucesso.");
-  } catch (error) {
-    console.error("Erro ao confirmar escolhas:", error);
-
-    const alreadyConfirmed =
-      error?.code === "23505" ||
-      String(error?.message || "").toLowerCase().includes("duplicate") ||
-      String(error?.message || "").toLowerCase().includes("unique");
-
-    const message = alreadyConfirmed
-      ? "Você já confirmou suas escolhas. Elas não podem ser alteradas."
-      : (error.message || "Nao foi possivel confirmar as escolhas.");
-
-    showToast(message);
-    renderPredictionStep();
-    showPredictionError(message);
-
-    if (predictionSubtitle) {
-      predictionSubtitle.textContent = message;
-    }
-  } finally {
-    if (predictionNextButton) {
-      predictionNextButton.dataset.loading = "false";
-      predictionNextButton.disabled = false;
-      predictionNextButton.textContent = "Confirmar escolhas";
-    }
-  }
-}
-
-async function handlePredictionNext() {
-  if (predictionNextButton?.dataset.loading === "true") return;
-
-  if (state.predictionStep === 1) {
-    if (!state.selectedChampion) {
-      showPredictionError("Escolha uma seleção campeã para continuar.");
-      showToast("Escolha uma seleção campeã para continuar.");
-      return;
-    }
 
     state.predictionStep = 2;
     renderPredictionStep();
@@ -597,11 +549,9 @@ async function handlePredictionNext() {
     selected_at: new Date().toISOString()
   };
 
-  console.log("Confirmando escolhas");
-  console.log("Campeão selecionado:", selectedChampion);
-  console.log("Artilheiro selecionado:", selectedTopScorer);
-  console.log("Payload participant_predictions:", payload);
-  console.log("Payload final participant_predictions:", payload);
+  console.log("selectedChampion:", selectedChampion);
+  console.log("selectedTopScorer:", selectedTopScorer);
+  console.log("Payload final:", payload);
 
   const missingFields = [
     ["participant_id", payload.participant_id],
@@ -626,8 +576,7 @@ async function handlePredictionNext() {
     const result = await saveParticipantPrediction(payload);
     console.log("Resultado saveParticipantPrediction:", result);
 
-    state.cupPick = await getParticipantPrediction(state.participant.id) || result;
-    state.participantPrediction = state.cupPick;
+    state.participantPrediction = result;
 
     closePredictionModal();
     showCurrentParticipant();
@@ -643,15 +592,10 @@ async function handlePredictionNext() {
 
     const message = alreadyConfirmed
       ? "Você já confirmou suas escolhas. Elas não podem ser alteradas."
-      : (error.message || "Nao foi possivel confirmar as escolhas.");
+      : (error.message || "Não foi possível confirmar as escolhas.");
 
     showToast(message);
-    renderPredictionStep();
     showPredictionError(message);
-
-    if (predictionSubtitle) {
-      predictionSubtitle.textContent = message;
-    }
   } finally {
     if (predictionNextButton) {
       predictionNextButton.dataset.loading = "false";
@@ -660,6 +604,7 @@ async function handlePredictionNext() {
     }
   }
 }
+
 
 function goToGuessesSection() {
   const target = document.querySelector("#guesses-section") || matchesList?.closest(".panel") || matchesList;
@@ -883,18 +828,26 @@ function getGuessAction(guess) {
 }
 
 function getSelectedTeam() {
-  const id = state.cupPick?.champion_team_id || state.selectedChampionTeamId;
-  if (state.cupPick?.champion_team) return state.cupPick.champion_team;
-  if (state.cupPick?.champion_name) {
+  // Durante o modal: usar state.selectedChampion
+  if (state.selectedChampion) return state.selectedChampion;
+  
+  // Após salvar: usar state.participantPrediction
+  const prediction = state.participantPrediction;
+  if (!prediction) return null;
+  
+  if (prediction.champion_team) return prediction.champion_team;
+  
+  if (prediction.champion_name) {
     return {
-      id,
-      name: state.cupPick.champion_name,
-      code: state.cupPick.champion_code,
-      flag_emoji: state.cupPick.champion_flag_emoji,
-      flag_url: state.cupPick.champion_flag_url
+      id: prediction.champion_team_id,
+      name: prediction.champion_name,
+      code: prediction.champion_code,
+      flag_emoji: prediction.champion_flag_emoji,
+      flag_url: prediction.champion_flag_url
     };
   }
-  return state.worldCupTeams.find((team) => String(team.id) === String(id));
+  
+  return state.worldCupTeams.find((team) => String(team.id) === String(prediction.champion_team_id));
 }
 
 function getPredictionDate(pick) {
@@ -902,17 +855,24 @@ function getPredictionDate(pick) {
 }
 
 function getSelectedPlayer() {
-  const id = state.cupPick?.top_scorer_player_id || state.selectedTopScorerPlayerId;
-  if (state.cupPick?.top_scorer_player) return state.cupPick.top_scorer_player;
-  if (state.cupPick?.top_scorer_name) {
+  // Durante o modal: usar state.selectedTopScorer
+  if (state.selectedTopScorer) return state.selectedTopScorer;
+  
+  // Após salvar: usar state.participantPrediction
+  const prediction = state.participantPrediction;
+  if (!prediction) return null;
+  
+  if (prediction.top_scorer_player) return prediction.top_scorer_player;
+  
+  if (prediction.top_scorer_name) {
     return {
-      id,
-      name: state.cupPick.top_scorer_name,
-      position: state.cupPick.top_scorer_position,
-      photo_url: state.cupPick.top_scorer_photo_url
+      id: prediction.top_scorer_player_id,
+      name: prediction.top_scorer_name,
+      position: prediction.top_scorer_position
     };
   }
-  return state.brazilPlayers.find((player) => String(player.id) === String(id));
+  
+  return state.brazilPlayers.find((player) => String(player.id) === String(prediction.top_scorer_player_id));
 }
 
 function findWorldCupTeamByName(name) {
@@ -965,12 +925,6 @@ function getPlayerPosition(player) {
 }
 
 function renderPlayerPhoto(player) {
-  const photoUrl = getFirstField(player, ["photo_url", "image_url", "avatar_url", "headshot_url", "picture_url"]);
-
-  if (photoUrl) {
-    return `<img src="${escapeHtml(photoUrl)}" alt="">`;
-  }
-
   return `<span>${escapeHtml(getInitials(getPlayerName(player)))}</span>`;
 }
 
