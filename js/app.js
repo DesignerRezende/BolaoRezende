@@ -8,6 +8,8 @@ const state = {
   cupPick: null,
   participantPrediction: null,
   predictionStep: 1,
+  selectedChampion: null,
+  selectedTopScorer: null,
   selectedChampionTeamId: null,
   selectedTopScorerPlayerId: null,
   matchFilter: "todos"
@@ -376,6 +378,8 @@ function openPredictionModal() {
   }
 
   state.predictionStep = 1;
+  state.selectedChampion = null;
+  state.selectedTopScorer = null;
   state.selectedChampionTeamId = null;
   state.selectedTopScorerPlayerId = null;
   predictionModal.hidden = false;
@@ -401,7 +405,7 @@ function renderPredictionStep() {
   predictionSubtitle.textContent = "Primeiro acesso: confirme com calma. Depois de salvar, nao podera alterar pelo site.";
   predictionBackButton.hidden = isTeamStep;
   predictionNextButton.textContent = isTeamStep ? "Continuar" : "Confirmar escolhas";
-  predictionNextButton.disabled = isTeamStep ? !state.selectedChampionTeamId : !state.selectedTopScorerPlayerId;
+  predictionNextButton.disabled = isTeamStep ? !state.selectedChampion : !state.selectedTopScorer;
 
   predictionGrid.className = `prediction-grid ${isTeamStep ? "prediction-grid--teams" : "prediction-grid--players"}`;
   predictionGrid.innerHTML = isTeamStep ? renderTeamCards() : renderPlayerCards();
@@ -409,9 +413,11 @@ function renderPredictionStep() {
   predictionGrid.querySelectorAll("[data-prediction-id]").forEach((card) => {
     card.addEventListener("click", () => {
       if (isTeamStep) {
-        state.selectedChampionTeamId = card.dataset.predictionId;
+        state.selectedChampion = state.worldCupTeams.find((team) => String(team.id) === String(card.dataset.predictionId)) || null;
+        state.selectedChampionTeamId = state.selectedChampion?.id || null;
       } else {
-        state.selectedTopScorerPlayerId = card.dataset.predictionId;
+        state.selectedTopScorer = state.brazilPlayers.find((player) => String(player.id) === String(card.dataset.predictionId)) || null;
+        state.selectedTopScorerPlayerId = state.selectedTopScorer?.id || null;
       }
 
       renderPredictionStep();
@@ -425,7 +431,7 @@ function renderTeamCards() {
   }
 
   return state.worldCupTeams.map((team) => {
-    const selected = String(team.id) === String(state.selectedChampionTeamId);
+    const selected = String(team.id) === String(state.selectedChampion?.id);
     const highlighted = isBrazilTeam(team);
     const code = getTeamCode(team);
     const group = getTeamGroup(team);
@@ -447,7 +453,7 @@ function renderPlayerCards() {
   }
 
   return state.brazilPlayers.map((player) => {
-    const selected = String(player.id) === String(state.selectedTopScorerPlayerId);
+    const selected = String(player.id) === String(state.selectedTopScorer?.id);
 
     return `
       <button class="prediction-card prediction-card--player ${selected ? "is-selected" : ""}" type="button" data-prediction-id="${escapeHtml(player.id)}">
@@ -469,7 +475,11 @@ async function handlePredictionNext() {
   if (predictionNextButton?.dataset.loading === "true") return;
 
   if (state.predictionStep === 1) {
-    if (!state.selectedChampionTeamId) return;
+    if (!state.selectedChampion) {
+      showPredictionError("Escolha uma seleção campeã para continuar.");
+      showToast("Escolha uma seleção campeã para continuar.");
+      return;
+    }
     state.predictionStep = 2;
     renderPredictionStep();
     return;
@@ -500,6 +510,113 @@ async function handlePredictionNext() {
   console.log("Campeão selecionado:", selectedChampion);
   console.log("Artilheiro selecionado:", selectedTopScorer);
   console.log("Payload participant_predictions:", payload);
+
+  try {
+    predictionNextButton.dataset.loading = "true";
+    predictionNextButton.disabled = true;
+    predictionNextButton.textContent = "Salvando...";
+
+    const result = await saveParticipantPrediction(payload);
+    console.log("Resultado saveParticipantPrediction:", result);
+
+    state.cupPick = await getParticipantPrediction(state.participant.id) || result;
+    state.participantPrediction = state.cupPick;
+
+    closePredictionModal();
+    showCurrentParticipant();
+    goToGuessesSection();
+    showToast("Escolhas salvas com sucesso.");
+  } catch (error) {
+    console.error("Erro ao confirmar escolhas:", error);
+
+    const alreadyConfirmed =
+      error?.code === "23505" ||
+      String(error?.message || "").toLowerCase().includes("duplicate") ||
+      String(error?.message || "").toLowerCase().includes("unique");
+
+    const message = alreadyConfirmed
+      ? "Você já confirmou suas escolhas. Elas não podem ser alteradas."
+      : (error.message || "Nao foi possivel confirmar as escolhas.");
+
+    showToast(message);
+    renderPredictionStep();
+    showPredictionError(message);
+
+    if (predictionSubtitle) {
+      predictionSubtitle.textContent = message;
+    }
+  } finally {
+    if (predictionNextButton) {
+      predictionNextButton.dataset.loading = "false";
+      predictionNextButton.disabled = false;
+      predictionNextButton.textContent = "Confirmar escolhas";
+    }
+  }
+}
+
+async function handlePredictionNext() {
+  if (predictionNextButton?.dataset.loading === "true") return;
+
+  if (state.predictionStep === 1) {
+    if (!state.selectedChampion) {
+      showPredictionError("Escolha uma seleção campeã para continuar.");
+      showToast("Escolha uma seleção campeã para continuar.");
+      return;
+    }
+
+    state.predictionStep = 2;
+    renderPredictionStep();
+    return;
+  }
+
+  if (!state.selectedChampion) {
+    showPredictionError("Escolha uma seleção campeã para continuar.");
+    showToast("Escolha uma seleção campeã para continuar.");
+    return;
+  }
+
+  if (!state.selectedTopScorer) {
+    showPredictionError("Escolha um artilheiro.");
+    showToast("Escolha um artilheiro.");
+    return;
+  }
+
+  if (!state.participant) return;
+
+  const selectedChampion = state.selectedChampion;
+  const selectedTopScorer = state.selectedTopScorer;
+  const payload = {
+    participant_id: state.participant.id,
+    champion_team_id: selectedChampion.id,
+    champion_name: getTeamName(selectedChampion),
+    champion_code: getTeamCode(selectedChampion),
+    champion_flag_emoji: getFirstField(selectedChampion, ["flag_emoji"]),
+    champion_flag_url: getFirstField(selectedChampion, ["flag_url"]),
+    top_scorer_player_id: selectedTopScorer.id,
+    top_scorer_name: getPlayerName(selectedTopScorer),
+    selected_at: new Date().toISOString()
+  };
+
+  console.log("Confirmando escolhas");
+  console.log("Campeão selecionado:", selectedChampion);
+  console.log("Artilheiro selecionado:", selectedTopScorer);
+  console.log("Payload participant_predictions:", payload);
+  console.log("Payload final participant_predictions:", payload);
+
+  const missingFields = [
+    ["participant_id", payload.participant_id],
+    ["champion_team_id", payload.champion_team_id],
+    ["champion_name", payload.champion_name],
+    ["top_scorer_player_id", payload.top_scorer_player_id],
+    ["top_scorer_name", payload.top_scorer_name]
+  ].filter(([, value]) => !value);
+
+  if (missingFields.length) {
+    const message = `Dados incompletos: ${missingFields.map(([field]) => field).join(", ")}.`;
+    showPredictionError(message);
+    showToast(message);
+    return;
+  }
 
   try {
     predictionNextButton.dataset.loading = "true";
@@ -768,6 +885,15 @@ function getGuessAction(guess) {
 function getSelectedTeam() {
   const id = state.cupPick?.champion_team_id || state.selectedChampionTeamId;
   if (state.cupPick?.champion_team) return state.cupPick.champion_team;
+  if (state.cupPick?.champion_name) {
+    return {
+      id,
+      name: state.cupPick.champion_name,
+      code: state.cupPick.champion_code,
+      flag_emoji: state.cupPick.champion_flag_emoji,
+      flag_url: state.cupPick.champion_flag_url
+    };
+  }
   return state.worldCupTeams.find((team) => String(team.id) === String(id));
 }
 
@@ -778,6 +904,14 @@ function getPredictionDate(pick) {
 function getSelectedPlayer() {
   const id = state.cupPick?.top_scorer_player_id || state.selectedTopScorerPlayerId;
   if (state.cupPick?.top_scorer_player) return state.cupPick.top_scorer_player;
+  if (state.cupPick?.top_scorer_name) {
+    return {
+      id,
+      name: state.cupPick.top_scorer_name,
+      position: state.cupPick.top_scorer_position,
+      photo_url: state.cupPick.top_scorer_photo_url
+    };
+  }
   return state.brazilPlayers.find((player) => String(player.id) === String(id));
 }
 

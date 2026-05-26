@@ -1464,3 +1464,204 @@ th {
     background: linear-gradient(180deg, rgba(7, 11, 43, 0), #070b2b 28%);
   }
 }
+
+/* Rezende dark game theme */
+:root {
+  --dark-bg: #060b24;
+  --dark-surface: #10184a;
+  --dark-surface-2: #151f5c;
+  --dark-border: rgba(255, 255, 255, 0.14);
+  --text-main: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.72);
+  --rezende-orange: #ff7a15;
+  --rezende-yellow: #fff300;
+  --rezende-green: #009b3a;
+  --neon-green: #b7ff2a;
+  --rezende-blue: #141b4d;
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 243, 0, 0.13), transparent 28%),
+    radial-gradient(circle at 88% 18%, rgba(0, 155, 58, 0.16), transparent 26%),
+    linear-gradient(180deg, var(--dark-bg), #030717 100%);
+  color: var(--text-main);
+}
+
+.topbar,
+.auth-container {
+  background:
+    radial-gradient(circle at top right, rgba(183, 255, 42, 0.18), transparent 28%),
+    linear-gradient(135deg, var(--dark-surface), var(--dark-bg));
+  border-bottom-color: var(--rezende-yellow);
+}
+
+.hero {
+  background:
+    linear-gradient(90deg, rgba(16, 24, 74, 0.96), rgba(255, 122, 21, 0.72)),
+    url("https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=1600&q=80") center/cover;
+}
+
+.panel,
+.auth-card,
+.participant-current,
+.match-card,
+.matches-section,
+.rules-panel,
+.live-panel {
+  background:
+    linear-gradient(180deg, rgba(21, 31, 92, 0.96), rgba(16, 24, 74, 0.94));
+  border-color: var(--dark-border);
+  color: var(--text-main);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.28);
+}
+
+h2,
+label,
+.participant-name-only,
+.match-title,
+th,
+.matches-section__header h2,
+.participant-picks strong,
+.match-team strong,
+.prediction-modal h2,
+.prediction-card strong {
+  color: var(--text-main);
+}
+
+.matches-section__header p,
+.match-meta,
+.match-card__footer span,
+.match-team span:last-child,
+.footer,
+td,
+.countdown-sub,
+.prediction-subtitle,
+.prediction-meta,
+.saved-guess span,
+.empty {
+  color: var(--text-muted);
+}
+
+.eyebrow,
+.prediction-code,
+.participant-picks span,
+.match-timer {
+  color: var(--rezende-orange);
+}
+
+.badge,
+h1 {
+  color: var(--rezende-yellow);
+}
+
+button,
+.auth-form button,
+.match-card__footer button {
+  background: var(--rezende-orange);
+  color: var(--text-main);
+}
+
+.button-secondary,
+.match-filter {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.match-filter.is-active {
+  background: var(--neon-green);
+  color: var(--dark-bg);
+}
+
+input,
+.guess-score input {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--dark-border);
+  color: var(--text-main);
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.live-score,
+.countdown-box {
+  background: linear-gradient(135deg, var(--dark-bg), var(--dark-surface-2));
+}
+
+.countdown-label,
+.countdown-time,
+.live-score strong {
+  color: var(--rezende-yellow);
+}
+
+.participant-picks div,
+.saved-guess {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--dark-border);
+}
+
+.match-team__flag,
+.prediction-player-photo {
+  background: linear-gradient(135deg, var(--neon-green), var(--rezende-green));
+}
+
+.status-aberto,
+.prediction-tag {
+  background: rgba(183, 255, 42, 0.16);
+  color: var(--neon-green);
+}
+
+.status-ao-vivo {
+  background: rgba(255, 122, 21, 0.18);
+  color: var(--rezende-orange);
+}
+
+.status-encerrado {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+}
+
+.table-wrap table {
+  color: var(--text-main);
+}
+
+th,
+td {
+  border-bottom-color: var(--dark-border);
+}
+
+.rules-list,
+.auth-subtitle {
+  color: var(--text-muted);
+}
+
+.toast {
+  background: var(--dark-surface);
+  border-left-color: var(--rezende-orange);
+  color: var(--text-main);
+}
+
+.prediction-modal__overlay {
+  background: rgba(3, 7, 23, 0.82);
+}
+
+.prediction-modal__dialog,
+.prediction-card {
+  background:
+    radial-gradient(circle at top right, rgba(183, 255, 42, 0.12), transparent 30%),
+    linear-gradient(180deg, var(--dark-surface-2), var(--dark-surface));
+  border-color: var(--dark-border);
+  color: var(--text-main);
+}
+
+.prediction-card.is-selected {
+  border-color: var(--neon-green);
+  box-shadow:
+    0 0 0 4px rgba(255, 243, 0, 0.22),
+    0 18px 36px rgba(0, 155, 58, 0.32);
+}
+
+.prediction-modal__footer {
+  background: linear-gradient(180deg, rgba(16, 24, 74, 0), var(--dark-bg) 35%);
+}

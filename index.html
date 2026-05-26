@@ -7,23 +7,23 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-  <!-- Tela de Autenticação -->
   <div id="auth-container" class="auth-container">
     <div class="auth-card">
-      <div class="auth-header">
-        <h1>Bolão Rezende</h1>
-        <p>Palpites internos • Seleção Brasileira</p>
+      <div class="auth-brand">
+        <img src="assets/logo-rezende-brasil.png" alt="Rezende" class="auth-logo">
+        <span>Bolão Copa 2026</span>
       </div>
 
       <form id="cpf-form" class="auth-form" onsubmit="return handleCPFLogin(event);">
-        <h2>Entrar com CPF</h2>
+        <h2>Acesse com seu CPF</h2>
+        <p class="auth-subtitle">Área exclusiva para colaboradores Rezende.</p>
 
         <label>
           CPF
@@ -37,20 +37,22 @@
           >
         </label>
 
-        <button id="login-button" type="submit">Entrar</button>
+        <button id="login-button" type="submit">Entrar no bolão</button>
       </form>
 
       <div id="auth-message" class="auth-message" hidden></div>
     </div>
   </div>
 
-  <!-- Conteúdo do Bolão -->
   <div id="app-content" hidden>
     <header class="topbar">
       <div class="topbar__inner">
-        <div>
-          <p class="eyebrow">Rezende Materiais para Construção</p>
-          <h1>Bolão Rezende</h1>
+        <div class="topbar-brand">
+          <img src="assets/logo-rezende-brasil.png" alt="Rezende" class="topbar-logo">
+          <div>
+            <p class="eyebrow">Palpites internos</p>
+            <h1>Bolão Copa 2026</h1>
+          </div>
         </div>
 
         <div class="topbar-actions">
@@ -63,8 +65,13 @@
     <main class="layout">
       <section class="hero">
         <div class="hero__content">
-          <p class="eyebrow">Palpites internos</p>
-          <h2>Jogos do Brasil, ranking ao vivo e disputa saudável entre lojas e setores.</h2>
+          <p class="eyebrow">Torcida Rezende</p>
+          <h2>Palpite, acompanhe o ranking e entre no clima dos jogos do Brasil.</h2>
+          <p class="hero-text">Os palpites fecham 20 minutos antes de cada partida.</p>
+        </div>
+
+        <div class="hero-mark">
+          <img src="assets/logo-rezende-icon.png" alt="Rezende Brasil">
         </div>
       </section>
 
@@ -72,7 +79,7 @@
         <div class="panel participant-panel">
           <div class="section-title">
             <p class="eyebrow">Participante</p>
-            <h2>Dados do participante</h2>
+            <h2>Você está jogando como</h2>
           </div>
 
           <form id="participant-form" class="form" hidden>
@@ -99,29 +106,22 @@
 
         <aside class="panel live-panel">
           <div class="section-title">
-            <p class="eyebrow">Ao vivo</p>
-            <h2>Jogo atual ou próximo</h2>
+            <p class="eyebrow">Próximo jogo</p>
+            <h2>Contagem regressiva</h2>
           </div>
 
           <div id="live-box" class="live-box">Carregando jogos...</div>
         </aside>
       </section>
 
-      <section id="guesses-section" class="matches-section">
-        <div class="matches-section__header">
+      <section class="panel">
+        <div class="section-title row-title">
           <div>
-            <h2>Jogos da Copa</h2>
-            <p>Confirme seu palpite antes do apito inicial.</p>
+            <p class="eyebrow">Brasil</p>
+            <h2>Jogos e palpites</h2>
           </div>
 
           <button id="refresh-button" class="button-secondary" type="button">Atualizar</button>
-        </div>
-
-        <div class="matches-toolbar" aria-label="Filtros dos jogos">
-          <button class="match-filter is-active" type="button" data-match-filter="todos">Todos</button>
-          <button class="match-filter" type="button" data-match-filter="ao vivo">Ao vivo</button>
-          <button class="match-filter" type="button" data-match-filter="proximos">Próximos</button>
-          <button class="match-filter" type="button" data-match-filter="encerrado">Encerrados</button>
         </div>
 
         <div id="matches-list" class="matches-list"></div>
@@ -165,38 +165,15 @@
             <li><strong>5 pontos</strong> por placar exato.</li>
             <li><strong>3 pontos</strong> por acertar vencedor ou empate.</li>
             <li><strong>+1 ponto</strong> por acertar os gols do Brasil.</li>
-            <li>Palpites fecham 20 minutos antes do horario de cada jogo.</li>
+            <li>Palpites fecham 20 minutos antes do jogo.</li>
           </ul>
         </div>
       </section>
     </main>
 
     <footer class="footer">
-      <span>© 2026 Rezende Materiais para Construção</span>
+      <span>© 2026 Rezende Materiais para Construção · Bolão interno</span>
     </footer>
-  </div>
-
-  <div id="prediction-modal" class="prediction-modal" hidden>
-    <div class="prediction-modal__overlay"></div>
-    <section class="prediction-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="prediction-title">
-      <div class="prediction-modal__header">
-        <span id="prediction-step-label" class="prediction-step">1 de 2</span>
-        <div>
-          <p class="eyebrow">Palpite especial</p>
-          <h2 id="prediction-title">Quem vai ganhar a Copa?</h2>
-          <p id="prediction-subtitle" class="prediction-subtitle">
-            Primeiro acesso: confirme com calma. Depois de salvar, nao podera alterar pelo site.
-          </p>
-        </div>
-      </div>
-
-      <div id="prediction-grid" class="prediction-grid"></div>
-
-      <div class="prediction-modal__footer">
-        <button id="prediction-back-button" class="button-secondary" type="button" hidden>Voltar</button>
-        <button id="prediction-next-button" type="button" disabled>Continuar</button>
-      </div>
-    </section>
   </div>
 
   <div id="toast" class="toast" hidden></div>
