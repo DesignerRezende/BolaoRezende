@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Bolao Rezende</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="admin-page">
+  <div id="admin-login" class="auth-container">
+    <div class="auth-card admin-login-card">
+      <div class="auth-brand">
+        <img src="assets/assets/logo-rezende-brasil.png" alt="Rezende" class="auth-logo">
+        <span>Painel Admin</span>
+      </div>
+
+      <form id="admin-login-form" class="auth-form">
+        <h2>Torcida Rezende</h2>
+        <p class="auth-subtitle">Acesso interno para gerenciar jogos, resultados e testes.</p>
+
+        <label>
+          Senha
+          <input id="admin-password" type="password" required autocomplete="current-password" placeholder="Digite a senha admin">
+        </label>
+
+        <button type="submit">Entrar</button>
+      </form>
+
+      <div id="admin-login-message" class="auth-message error" hidden></div>
+    </div>
+  </div>
+
+  <div id="admin-app" hidden>
+    <header class="admin-topbar">
+      <div class="admin-topbar__stripe">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+
+      <div class="admin-topbar__inner">
+        <div>
+          <p class="eyebrow">Painel Admin</p>
+          <h1>Torcida Rezende</h1>
+        </div>
+
+        <button id="admin-logout-button" class="button-logout" type="button">Sair</button>
+      </div>
+    </header>
+
+    <main class="admin-layout">
+      <nav class="admin-tabs" aria-label="Abas do painel admin">
+        <button class="admin-tab is-active" type="button" data-admin-tab="matches">Jogos e resultados</button>
+        <button class="admin-tab" type="button" data-admin-tab="ranking">Ranking</button>
+        <button class="admin-tab" type="button" data-admin-tab="guesses">Palpites</button>
+        <button class="admin-tab" type="button" data-admin-tab="predictions">Campeao e artilheiro</button>
+        <button class="admin-tab" type="button" data-admin-tab="cleanup">Limpeza de testes</button>
+      </nav>
+
+      <section id="admin-tab-matches" class="admin-section is-active">
+        <div class="admin-grid">
+          <article class="panel">
+            <div class="section-title row-title">
+              <div>
+                <p class="eyebrow">Jogos</p>
+                <h2>Jogos e resultados</h2>
+              </div>
+
+              <button id="admin-refresh-matches" class="button-secondary" type="button">Atualizar</button>
+            </div>
+
+            <div id="admin-matches-list" class="admin-card-list"></div>
+          </article>
+
+          <aside class="panel">
+            <div class="section-title">
+              <p class="eyebrow">Novo jogo</p>
+              <h2>Cadastrar novo jogo</h2>
+            </div>
+
+            <form id="admin-create-match-form" class="form">
+              <label>
+                Selecao A
+                <input name="home_team" type="text" required placeholder="Brasil">
+              </label>
+
+              <label>
+                Selecao B
+                <input name="away_team" type="text" required placeholder="Adversario">
+              </label>
+
+              <label>
+                Data e hora
+                <input name="match_date" type="datetime-local" required>
+              </label>
+
+              <label>
+                Fase
+                <input name="phase" type="text" placeholder="Oitavas de final">
+              </label>
+
+              <label>
+                Status
+                <select name="status">
+                  <option value="aberto">aberto</option>
+                  <option value="ao vivo">ao vivo</option>
+                  <option value="encerrado">encerrado</option>
+                </select>
+              </label>
+
+              <button type="submit">Cadastrar jogo</button>
+            </form>
+          </aside>
+        </div>
+      </section>
+
+      <section id="admin-tab-ranking" class="admin-section">
+        <article class="panel">
+          <div class="section-title row-title">
+            <div>
+              <p class="eyebrow">Classificacao</p>
+              <h2>Ranking completo</h2>
+            </div>
+
+            <button id="admin-refresh-ranking" class="button-secondary" type="button">Atualizar ranking</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Posicao</th>
+                  <th>Nome</th>
+                  <th>Loja</th>
+                  <th>Pontos</th>
+                  <th>Palpites</th>
+                  <th>Exatos</th>
+                  <th>Resultado</th>
+                  <th>Campeao</th>
+                  <th>Artilheiro</th>
+                  <th>Escolha</th>
+                </tr>
+              </thead>
+              <tbody id="admin-ranking-body">
+                <tr><td colspan="10">Carregando ranking...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="admin-tab-guesses" class="admin-section">
+        <article class="panel">
+          <div class="section-title row-title">
+            <div>
+              <p class="eyebrow">Palpites</p>
+              <h2>Todos os palpites</h2>
+            </div>
+
+            <button id="admin-export-guesses" class="button-secondary" type="button">Exportar CSV</button>
+          </div>
+
+          <div class="admin-filters">
+            <label>
+              Jogo
+              <select id="guess-filter-match">
+                <option value="">Todos</option>
+              </select>
+            </label>
+
+            <label>
+              Participante
+              <input id="guess-filter-participant" type="search" placeholder="Nome">
+            </label>
+
+            <label>
+              Loja
+              <input id="guess-filter-store" type="search" placeholder="Loja">
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Participante</th>
+                  <th>Loja</th>
+                  <th>Jogo</th>
+                  <th>Palpite</th>
+                  <th>Data/hora</th>
+                  <th>Pontos</th>
+                </tr>
+              </thead>
+              <tbody id="admin-guesses-body">
+                <tr><td colspan="6">Carregando palpites...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="admin-tab-predictions" class="admin-section">
+        <article class="panel">
+          <div class="section-title">
+            <p class="eyebrow">Primeiro acesso</p>
+            <h2>Campeao e artilheiro</h2>
+          </div>
+
+          <div class="admin-filters">
+            <label>
+              Campeao
+              <input id="prediction-filter-champion" type="search" placeholder="Selecao">
+            </label>
+
+            <label>
+              Artilheiro
+              <input id="prediction-filter-scorer" type="search" placeholder="Jogador">
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Participante</th>
+                  <th>Loja</th>
+                  <th>Campeao</th>
+                  <th>Artilheiro</th>
+                  <th>Data/hora</th>
+                  <th>Teste</th>
+                </tr>
+              </thead>
+              <tbody id="admin-predictions-body">
+                <tr><td colspan="6">Carregando escolhas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="admin-tab-cleanup" class="admin-section">
+        <article class="panel">
+          <div class="section-title">
+            <p class="eyebrow">Testes</p>
+            <h2>Limpeza de participante</h2>
+          </div>
+
+          <form id="admin-participant-search-form" class="admin-search">
+            <label>
+              Buscar participante por nome ou CPF
+              <input id="admin-participant-search" type="search" required placeholder="Nome, loja ou CPF">
+            </label>
+            <button type="submit">Buscar</button>
+          </form>
+
+          <div id="admin-participant-results" class="admin-card-list"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="admin-toast" class="toast" hidden></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

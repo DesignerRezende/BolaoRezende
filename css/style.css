@@ -123,6 +123,24 @@ input {
   font: inherit;
 }
 
+select {
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  border: 1.5px solid rgba(255, 255, 255, 0.10);
+  border-radius: var(--radius-control);
+  background: rgba(15, 23, 42, 0.60);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 800;
+  padding: 14px 15px;
+}
+
+select:focus {
+  border-color: var(--primary-green);
+  outline: 3px solid rgba(0, 156, 59, 0.15);
+}
+
 button {
   min-height: 52px;
   border: 0;
@@ -1365,6 +1383,209 @@ tr.is-current-participant td {
   border: 1px solid rgba(0, 156, 59, 0.28);
   background: rgba(0, 156, 59, 0.12);
   color: var(--green-light);
+}
+
+.admin-page {
+  min-height: 100vh;
+}
+
+.admin-login-card {
+  max-width: 420px;
+}
+
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(5, 11, 26, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.admin-topbar__stripe {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: 6px;
+}
+
+.admin-topbar__stripe span:nth-child(1) {
+  background: var(--primary-green);
+}
+
+.admin-topbar__stripe span:nth-child(2) {
+  background: var(--primary-yellow);
+}
+
+.admin-topbar__stripe span:nth-child(3) {
+  background: #002776;
+}
+
+.admin-topbar__inner,
+.admin-layout {
+  width: min(1180px, calc(100% - 28px));
+  margin: 0 auto;
+}
+
+.admin-topbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 0;
+}
+
+.admin-topbar h1 {
+  font-size: clamp(1.35rem, 6vw, 2.2rem);
+  line-height: 1;
+  background: linear-gradient(135deg, #ffffff 30%, var(--primary-yellow) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.admin-layout {
+  display: grid;
+  gap: 16px;
+  padding: 18px 0 36px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-tab {
+  min-height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(10, 22, 50, 0.72);
+  color: var(--text-secondary);
+  box-shadow: none;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  padding: 10px 14px;
+}
+
+.admin-tab.is-active {
+  border-color: rgba(255, 223, 0, 0.28);
+  background: rgba(255, 223, 0, 0.10);
+  color: var(--primary-yellow);
+}
+
+.admin-section {
+  display: none;
+}
+
+.admin-section.is-active {
+  display: block;
+}
+
+.admin-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-card-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-match-card,
+.admin-participant-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(0, 156, 59, 0.18);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.06), transparent 34%),
+    rgba(15, 23, 42, 0.50);
+  padding: 14px;
+}
+
+.admin-match-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-match-card__header strong,
+.admin-participant-card strong {
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.admin-match-card__meta,
+.admin-participant-card span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.admin-match-card__meta span {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 5px 8px;
+}
+
+.admin-form-grid,
+.admin-filters,
+.admin-search {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-search {
+  margin-bottom: 16px;
+}
+
+.admin-danger-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-danger-grid button,
+.admin-mini-danger {
+  min-height: 38px;
+  border: 1px solid rgba(239, 68, 68, 0.34);
+  background: rgba(127, 29, 29, 0.30);
+  color: var(--danger-light);
+  box-shadow: none;
+  font-size: 0.72rem;
+  padding: 9px 11px;
+}
+
+.admin-mini-danger {
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.admin-page table {
+  min-width: 980px;
+}
+
+@media (min-width: 760px) {
+  .admin-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.55fr);
+  }
+
+  .admin-form-grid,
+  .admin-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-search {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .admin-danger-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 380px) {
