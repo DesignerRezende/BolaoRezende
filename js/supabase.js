@@ -243,6 +243,7 @@ async function listRanking() {
   return [...rankingMap.values()]
     .sort((a, b) => b.points - a.points || b.guesses - a.guesses || a.participant.name.localeCompare(b.participant.name))
     .map((row, index) => ({
+      participant_id: row.participant.id,
       position: index + 1,
       name: row.participant.name,
       store_sector: row.participant.store_sector,
