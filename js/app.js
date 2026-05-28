@@ -439,6 +439,7 @@ function renderMatchCard(match) {
   const savedGuess = state.guesses.find((guess) => guess.match_id === match.id);
   const disabled = !state.participant || locked ? "disabled" : "";
   const buttonText = savedGuess ? "Atualizar palpite" : "Salvar palpite";
+  const buttonClass = savedGuess ? "button-update-guess" : "button-save-guess";
   const closeTime = getGuessCloseDate(match);
   const guessTimestamp = savedGuess?.updated_at || savedGuess?.created_at;
   const guessAction = getGuessAction(savedGuess);
@@ -491,7 +492,7 @@ function renderMatchCard(match) {
 
         <div class="match-card__footer">
           <span>${formatDate(match.match_date)} &middot; ${state.guessCounts[match.id] || 0} palpites</span>
-          <button type="submit" ${disabled}>${locked ? "Fechado" : buttonText}</button>
+          <button class="${buttonClass}" type="submit" ${disabled}>${locked ? "Fechado" : buttonText}</button>
         </div>
       </form>
     </article>

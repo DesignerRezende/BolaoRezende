@@ -3209,3 +3209,26 @@ body.floating-panel-open .bottom-nav {
     gap: 5px !important;
   }
 }
+/* =========================================================
+   BOTÕES DE PALPITE · SALVAR / ATUALIZAR / FECHADO
+========================================================= */
+
+.match-card__footer button.button-save-guess {
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--green-brand) 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 15px rgba(0, 156, 59, 0.28) !important;
+}
+
+.match-card__footer button.button-update-guess {
+  background: linear-gradient(135deg, var(--primary-yellow) 0%, var(--primary-orange) 100%) !important;
+  color: #050505 !important;
+  box-shadow: 0 4px 15px rgba(255, 223, 0, 0.28) !important;
+}
+
+.match-card[data-locked="true"] .match-card__footer button,
+.match-card__footer button:disabled {
+  background: rgba(127, 29, 29, 0.42) !important;
+  color: var(--danger-light) !important;
+  border: 1px solid rgba(239, 68, 68, 0.28) !important;
+  box-shadow: none !important;
+}
