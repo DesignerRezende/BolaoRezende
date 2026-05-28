@@ -122,54 +122,93 @@
         <div id="matches-list" class="matches-list"></div>
       </section>
 
-      <section class="grid">
-        <div class="panel">
-          <div class="section-title">
-            <p class="eyebrow">Classificação</p>
-            <h2>Top 10</h2>
-          </div>
-
-          <div id="ranking-current" class="ranking-current" hidden></div>
-
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Posição</th>
-                  <th>Nome</th>
-                  <th>Loja</th>
-                  <th>Pontos</th>
-                  <th>Palpites</th>
-                </tr>
-              </thead>
-
-              <tbody id="ranking-body">
-                <tr>
-                  <td colspan="5">Carregando ranking...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+      <section class="panel rules-panel">
+        <div class="section-title">
+          <p class="eyebrow">Regras</p>
+          <h2>Pontuação</h2>
         </div>
 
-        <div class="panel rules-panel">
-          <div class="section-title">
-            <p class="eyebrow">Regras</p>
-            <h2>Pontuação</h2>
-          </div>
-
-          <ul class="rules-list">
-            <li><strong>5 pontos</strong> por placar exato.</li>
-            <li><strong>3 pontos</strong> por acertar vencedor ou empate.</li>
-            <li>Palpites fecham <strong>20 minutos antes</strong> de cada jogo.</li>
-          </ul>
-        </div>
+        <ul class="rules-list">
+          <li><strong>5 pontos</strong> por placar exato.</li>
+          <li><strong>3 pontos</strong> por acertar vencedor ou empate.</li>
+          <li><strong>10 pontos</strong> se acertar o campeão da Copa.</li>
+          <li><strong>7 pontos</strong> se acertar o artilheiro do Brasil.</li>
+          <li>Palpites fecham <strong>20 minutos antes</strong> de cada jogo.</li>
+        </ul>
       </section>
     </main>
 
     <footer class="footer">
       <span>© 2026 Rezende Materiais para Construção · Bolão interno</span>
     </footer>
+
+    <section id="ranking-panel" class="floating-info-panel" hidden>
+      <div class="floating-info-panel__overlay" data-close-floating-panel></div>
+
+      <div class="floating-info-panel__dialog">
+        <div class="floating-info-panel__header">
+          <div>
+            <p class="eyebrow">Classificação</p>
+            <h2>Ranking</h2>
+          </div>
+
+          <button class="floating-info-panel__close" type="button" data-close-floating-panel>Voltar</button>
+        </div>
+
+        <div id="ranking-current" class="ranking-current" hidden></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Posição</th>
+                <th>Nome</th>
+                <th>Loja</th>
+                <th>Pontos</th>
+                <th>Palpites</th>
+              </tr>
+            </thead>
+
+            <tbody id="ranking-body">
+              <tr>
+                <td colspan="5">Carregando ranking...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="today-games-panel" class="floating-info-panel" hidden>
+      <div class="floating-info-panel__overlay" data-close-floating-panel></div>
+
+      <div class="floating-info-panel__dialog">
+        <div class="floating-info-panel__header">
+          <div>
+            <p class="eyebrow">Hoje</p>
+            <h2>Jogos do dia</h2>
+          </div>
+
+          <button class="floating-info-panel__close" type="button" data-close-floating-panel>Voltar</button>
+        </div>
+
+        <div id="today-games-list" class="today-games-list">
+          Carregando jogos do dia...
+        </div>
+      </div>
+    </section>
+
+    <nav class="bottom-nav" aria-label="Atalhos do bolão">
+      <button id="bottom-nav-today" class="bottom-nav__button" type="button">
+        <span>📅</span>
+        <strong>Jogos do dia</strong>
+      </button>
+
+      <button id="bottom-nav-ranking" class="bottom-nav__button" type="button">
+        <span>🥇</span>
+        <strong>Ranking</strong>
+      </button>
+    </nav>
   </div>
 
   <div id="toast" class="toast" hidden></div>

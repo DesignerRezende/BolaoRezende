@@ -60,6 +60,12 @@ const predictionGrid = document.querySelector("#prediction-grid");
 const predictionBackButton = document.querySelector("#prediction-back-button");
 const predictionNextButton = document.querySelector("#prediction-next-button");
 
+const rankingPanel = document.querySelector("#ranking-panel");
+const todayGamesPanel = document.querySelector("#today-games-panel");
+const todayGamesList = document.querySelector("#today-games-list");
+const bottomNavToday = document.querySelector("#bottom-nav-today");
+const bottomNavRanking = document.querySelector("#bottom-nav-ranking");
+
 const GUESS_CLOSE_MINUTES_BEFORE_MATCH = 20;
 let countdownTimer = null;
 
@@ -93,6 +99,30 @@ if (predictionNextButton) {
     handlePredictionNext();
   });
 }
+
+if (bottomNavToday) {
+  bottomNavToday.addEventListener("click", () => {
+    renderTodayGames();
+    openFloatingPanel(todayGamesPanel);
+  });
+}
+
+if (bottomNavRanking) {
+  bottomNavRanking.addEventListener("click", async () => {
+    await renderRanking();
+    openFloatingPanel(rankingPanel);
+  });
+}
+
+document.querySelectorAll("[data-close-floating-panel]").forEach((button) => {
+  button.addEventListener("click", closeFloatingPanels);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeFloatingPanels();
+  }
+});
 
 async function initApp() {
   console.log("initApp iniciou");
@@ -262,6 +292,7 @@ async function loadDashboard() {
     showCurrentParticipant();
     renderLiveBox();
     renderMatches();
+    renderTodayGames();
     startCountdowns();
     await renderRanking();
     maybeOpenPredictionModal();
@@ -895,6 +926,98 @@ function getCountdownText(match) {
   }
 
   return `Faltam ${pad2(hours)}h ${pad2(minutes)}m ${pad2(seconds)}s`;
+}
+
+function openFloatingPanel(panel) {
+  if (!panel) return;
+
+  closeFloatingPanels();
+
+  panel.hidden = false;
+  panel.classList.add("is-open");
+  document.body.classList.add("floating-panel-open");
+}
+
+function closeFloatingPanels() {
+  document.querySelectorAll(".floating-info-panel").forEach((panel) => {
+    panel.hidden = true;
+    panel.classList.remove("is-open");
+  });
+
+  document.body.classList.remove("floating-panel-open");
+}
+
+function renderTodayGames() {
+  if (!todayGamesList) return;
+
+  if (!state.matches.length) {
+    todayGamesList.innerHTML = '<p class="empty">Nenhum jogo cadastrado.</p>';
+    return;
+  }
+
+  const todayKey = getLocalDateKey(new Date());
+
+  const todayMatches = state.matches.filter((match) => {
+    return getLocalDateKey(new Date(match.match_date)) === todayKey;
+  });
+
+  if (!todayMatches.length) {
+    todayGamesList.innerHTML = `
+      <div class="today-empty">
+        <strong>Nenhum jogo hoje</strong>
+        <span>Quando houver partidas no dia, elas aparecerão aqui.</span>
+      </div>
+    `;
+    return;
+  }
+
+  todayGamesList.innerHTML = todayMatches.map((match) => {
+    const homeTeam = findWorldCupTeamByName(match.home_team);
+    const awayTeam = findWorldCupTeamByName(match.away_team);
+    const locked = isGuessClosed(match);
+
+    return `
+      <article class="today-game-card">
+        <div class="today-game-card__top">
+          <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
+          <strong>${formatTime(match.match_date)}</strong>
+        </div>
+
+        <div class="today-game-card__teams">
+          <div>
+            <span class="today-game-card__flag">${renderMatchFlag(homeTeam, match.home_team)}</span>
+            <strong>${escapeHtml(getMatchTeamCode(homeTeam, match.home_team))}</strong>
+            <small>${escapeHtml(match.home_team)}</small>
+          </div>
+
+          <span class="today-game-card__vs">VS</span>
+
+          <div>
+            <span class="today-game-card__flag">${renderMatchFlag(awayTeam, match.away_team)}</span>
+            <strong>${escapeHtml(getMatchTeamCode(awayTeam, match.away_team))}</strong>
+            <small>${escapeHtml(match.away_team)}</small>
+          </div>
+        </div>
+
+        <div class="today-game-card__footer">
+          <span>${escapeHtml(match.phase || "Fase não informada")}</span>
+          <span>${locked ? "Palpites encerrados" : `Palpites até ${formatTime(getGuessCloseDate(match))}`}</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function getLocalDateKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function formatDate(value) {
