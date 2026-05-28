@@ -3,19 +3,6 @@ console.log("auth.js carregado");
 let currentEmployee = null;
 let loginInProgress = false;
 
-const AUTHORIZED_CPFS_LOCAL = {
-  "12873843748": {
-    id: "cpf-12873843748",
-    name: "Funcionário Teste 1",
-    store_sector: "Teste Rezende"
-  },
-  "05820212789": {
-    id: "cpf-05820212789",
-    name: "Funcionário Teste 2",
-    store_sector: "Teste Rezende"
-  }
-};
-
 function formatCPF(cpf) {
   let value = String(cpf || "").replace(/\D/g, "");
 
@@ -59,12 +46,15 @@ function loadSavedEmployee() {
   }
 }
 
-function saveEmployeeSession(employee, cpfClean) {
+function saveEmployeeSession(employee) {
   currentEmployee = {
     id: employee.id,
     name: employee.name,
     store_sector: employee.store_sector,
-    cpf: cpfClean
+    cpf: employee.cpf_digits,
+    cpf_digits: employee.cpf_digits,
+    active: employee.active,
+    must_change_password: employee.must_change_password
   };
 
   localStorage.setItem("bolao_rezende_employee", JSON.stringify(currentEmployee));
@@ -72,17 +62,20 @@ function saveEmployeeSession(employee, cpfClean) {
   return currentEmployee;
 }
 
-function validateCPFLocal(cpfClean) {
-  const employee = AUTHORIZED_CPFS_LOCAL[cpfClean];
+function updateEmployeeSession(updates = {}) {
+  if (!currentEmployee) return null;
 
-  if (!employee) {
-    throw new Error("CPF não habilitado para participar do Bolão Rezende.");
-  }
+  currentEmployee = {
+    ...currentEmployee,
+    ...updates
+  };
 
-  return saveEmployeeSession(employee, cpfClean);
+  localStorage.setItem("bolao_rezende_employee", JSON.stringify(currentEmployee));
+
+  return currentEmployee;
 }
 
-function withTimeout(promise, timeoutMs = 5000) {
+function withTimeout(promise, timeoutMs = 8000) {
   return Promise.race([
     promise,
     new Promise((_, reject) => {
@@ -93,8 +86,9 @@ function withTimeout(promise, timeoutMs = 5000) {
   ]);
 }
 
-async function loginWithCPF(cpf) {
+async function loginWithCPFAndPassword(cpf, password) {
   const cpfClean = cleanCPF(cpf);
+  const passwordClean = String(password || "").trim();
 
   console.log("CPF limpo:", cpfClean);
 
@@ -102,40 +96,406 @@ async function loginWithCPF(cpf) {
     throw new Error("CPF deve conter 11 dígitos.");
   }
 
-  try {
-    const client = getSupabaseClient();
-
-    console.log("Cliente Supabase obtido:", client);
-    console.log("Método rpc disponível?", typeof client.rpc);
-
-    const { data, error } = await withTimeout(
-      client.rpc("check_employee_cpf", {
-        cpf_input: cpfClean
-      }),
-      5000
-    );
-
-    console.log("Resposta Supabase:", data, error);
-
-    if (error) {
-      console.warn("Falha na validação pelo Supabase. Tentando lista local.", error);
-      return validateCPFLocal(cpfClean);
-    }
-
-    if (data && data.length > 0) {
-      return saveEmployeeSession(data[0], cpfClean);
-    }
-
-    return validateCPFLocal(cpfClean);
-  } catch (error) {
-    console.warn("Supabase demorou/falhou. Tentando lista local.", error);
-    return validateCPFLocal(cpfClean);
+  if (!passwordClean) {
+    throw new Error("Digite sua senha.");
   }
+
+  const client = getSupabaseClient();
+
+  const { data, error } = await withTimeout(
+    client.rpc("login_authorized_employee", {
+      p_cpf_digits: cpfClean,
+      p_password: passwordClean
+    }),
+    8000
+  );
+
+  console.log("Resposta login Supabase:", data, error);
+
+  if (error) {
+    console.error("Erro RPC login_authorized_employee:", error);
+    throw new Error("Erro ao validar login no Supabase.");
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error("CPF ou senha inválidos.");
+  }
+
+  return saveEmployeeSession(data[0]);
+}
+
+async function changeCurrentEmployeePassword(oldPassword, newPassword, confirmPassword) {
+  if (!currentEmployee?.id) {
+    throw new Error("Sessão não encontrada. Faça login novamente.");
+  }
+
+  const oldPasswordClean = String(oldPassword || "").trim();
+  const newPasswordClean = String(newPassword || "").trim();
+  const confirmPasswordClean = String(confirmPassword || "").trim();
+
+  if (!oldPasswordClean) {
+    throw new Error("Digite sua senha atual.");
+  }
+
+  if (!/^[0-9]{6}$/.test(newPasswordClean)) {
+    throw new Error("A nova senha deve ter exatamente 6 números.");
+  }
+
+  if (newPasswordClean !== confirmPasswordClean) {
+    throw new Error("A confirmação da senha não confere.");
+  }
+
+  if (oldPasswordClean === newPasswordClean) {
+    throw new Error("A nova senha precisa ser diferente da senha atual.");
+  }
+
+  const client = getSupabaseClient();
+
+  const { data, error } = await withTimeout(
+    client.rpc("change_authorized_employee_password", {
+      p_employee_id: currentEmployee.id,
+      p_old_password: oldPasswordClean,
+      p_new_password: newPasswordClean
+    }),
+    8000
+  );
+
+  console.log("Resposta alteração de senha:", data, error);
+
+  if (error) {
+    console.error("Erro RPC change_authorized_employee_password:", error);
+    throw new Error("Erro ao alterar senha no Supabase.");
+  }
+
+  if (!data?.ok) {
+    throw new Error(data?.error || "Não foi possível alterar a senha.");
+  }
+
+  updateEmployeeSession({
+    must_change_password: false
+  });
+
+  return data;
+}
+
+function ensurePasswordField() {
+  const cpfForm = document.querySelector("#cpf-form");
+  const cpfInput = document.querySelector("#cpf-input");
+  const loginButton = document.querySelector("#login-button");
+
+  if (!cpfForm || !cpfInput) return;
+
+  let passwordInput = document.querySelector("#password-input");
+
+  if (!passwordInput) {
+    const passwordGroup = document.createElement("div");
+    passwordGroup.className = "auth-field auth-password-field";
+    passwordGroup.innerHTML = `
+      <label for="password-input">Senha</label>
+      <input
+        id="password-input"
+        name="password"
+        type="password"
+        inputmode="numeric"
+        autocomplete="current-password"
+        placeholder="Digite sua senha"
+        required
+      >
+      <small>Primeiro acesso: use a senha 1234.</small>
+    `;
+
+    if (loginButton) {
+      loginButton.insertAdjacentElement("beforebegin", passwordGroup);
+    } else {
+      cpfForm.appendChild(passwordGroup);
+    }
+  }
+}
+
+function ensurePasswordChangeButton() {
+  const logoutButton = document.querySelector("#logout-button");
+
+  if (document.querySelector("#change-password-button")) {
+    return;
+  }
+
+  const button = document.createElement("button");
+  button.id = "change-password-button";
+  button.type = "button";
+  button.className = "logout-button change-password-button";
+  button.textContent = "Alterar senha";
+  button.hidden = true;
+  button.style.display = "none";
+
+  button.addEventListener("click", openPasswordWindow);
+
+  if (logoutButton && logoutButton.parentElement) {
+    logoutButton.insertAdjacentElement("beforebegin", button);
+  } else {
+    document.body.appendChild(button);
+  }
+}
+
+function openPasswordWindow() {
+  if (!currentEmployee?.id) {
+    showToastSafe("Faça login novamente para alterar a senha.");
+    return;
+  }
+
+  window.__bolaoChangePassword = changeCurrentEmployeePassword;
+  window.__bolaoShowToast = showToastSafe;
+
+  const popup = window.open(
+    "",
+    "alterarSenhaBolaoRezende",
+    "width=480,height=640,resizable=yes,scrollbars=yes"
+  );
+
+  if (!popup) {
+    showToastSafe("O navegador bloqueou a janela. Libere pop-ups para alterar a senha.");
+    return;
+  }
+
+  popup.document.open();
+  popup.document.write(`
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Alterar senha - Torcida Rezende</title>
+
+        <style>
+          * {
+            box-sizing: border-box;
+          }
+
+          body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background:
+              radial-gradient(circle at top left, rgba(0, 176, 80, 0.24), transparent 35%),
+              linear-gradient(135deg, #020817 0%, #08142d 62%, #111400 100%);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+          }
+
+          .card {
+            width: 100%;
+            max-width: 420px;
+            background: #0b1630;
+            border: 1px solid rgba(0, 176, 80, 0.65);
+            border-top: 4px solid #ffdd00;
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+          }
+
+          .eyebrow {
+            color: #ffdd00;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+          }
+
+          h1 {
+            margin: 8px 0 8px;
+            font-size: 34px;
+            line-height: 1;
+          }
+
+          p {
+            margin: 0 0 24px;
+            color: #b7c1d6;
+            font-size: 14px;
+            line-height: 1.4;
+          }
+
+          label {
+            display: block;
+            margin-bottom: 16px;
+            color: #ffdd00;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+          }
+
+          input {
+            width: 100%;
+            margin-top: 8px;
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: #101a33;
+            color: #ffffff;
+            font-size: 16px;
+            outline: none;
+          }
+
+          input:focus {
+            border-color: #00b050;
+            box-shadow: 0 0 0 3px rgba(0, 176, 80, 0.2);
+          }
+
+          .message {
+            display: none;
+            margin: 12px 0 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+          }
+
+          .message.success {
+            display: block;
+            background: rgba(0, 176, 80, 0.15);
+            border: 1px solid rgba(0, 176, 80, 0.5);
+            color: #87ffb5;
+          }
+
+          .message.error {
+            display: block;
+            background: rgba(255, 80, 80, 0.14);
+            border: 1px solid rgba(255, 80, 80, 0.55);
+            color: #ff9f9f;
+          }
+
+          .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+          }
+
+          button {
+            border: 0;
+            border-radius: 16px;
+            padding: 15px 18px;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+          }
+
+          .save {
+            flex: 1;
+            background: linear-gradient(135deg, #ffdd00, #ff8a00);
+            color: #061020;
+            box-shadow: 0 12px 28px rgba(255, 178, 0, 0.28);
+          }
+
+          .cancel {
+            background: #18243f;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+          }
+
+          button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+          }
+        </style>
+      </head>
+
+      <body>
+        <main class="card">
+          <span class="eyebrow">Torcida Rezende</span>
+          <h1>Alterar senha</h1>
+          <p>A nova senha deve ter exatamente 6 números. No próximo login, use CPF + nova senha.</p>
+
+          <form id="password-form">
+            <label>
+              Senha atual
+              <input id="old-password" type="password" inputmode="numeric" placeholder="Senha atual" required>
+            </label>
+
+            <label>
+              Nova senha
+              <input id="new-password" type="password" inputmode="numeric" maxlength="6" placeholder="6 números" required>
+            </label>
+
+            <label>
+              Confirmar nova senha
+              <input id="confirm-password" type="password" inputmode="numeric" maxlength="6" placeholder="Repita a nova senha" required>
+            </label>
+
+            <div id="message" class="message"></div>
+
+            <div class="actions">
+              <button class="save" id="save-button" type="submit">Salvar senha</button>
+              <button class="cancel" type="button" onclick="window.close()">Cancelar</button>
+            </div>
+          </form>
+        </main>
+
+        <script>
+          const form = document.querySelector("#password-form");
+          const oldInput = document.querySelector("#old-password");
+          const newInput = document.querySelector("#new-password");
+          const confirmInput = document.querySelector("#confirm-password");
+          const message = document.querySelector("#message");
+          const saveButton = document.querySelector("#save-button");
+
+          function onlyNumbers(input) {
+            input.value = String(input.value || "").replace(/\\\\D/g, "").slice(0, 6);
+          }
+
+          newInput.addEventListener("input", () => onlyNumbers(newInput));
+          confirmInput.addEventListener("input", () => onlyNumbers(confirmInput));
+
+          function showMessage(text, type) {
+            message.textContent = text;
+            message.className = "message " + type;
+          }
+
+          form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            try {
+              saveButton.disabled = true;
+              saveButton.textContent = "Salvando...";
+
+              if (!window.opener || !window.opener.__bolaoChangePassword) {
+                throw new Error("Não foi possível conectar com a tela principal.");
+              }
+
+              await window.opener.__bolaoChangePassword(
+                oldInput.value,
+                newInput.value,
+                confirmInput.value
+              );
+
+              showMessage("Senha alterada com sucesso.", "success");
+
+              if (window.opener.__bolaoShowToast) {
+                window.opener.__bolaoShowToast("Senha alterada com sucesso.");
+              }
+
+              setTimeout(() => {
+                window.close();
+              }, 1200);
+            } catch (error) {
+              showMessage(error.message || "Erro ao alterar senha.", "error");
+            } finally {
+              saveButton.disabled = false;
+              saveButton.textContent = "Salvar senha";
+            }
+          });
+        <\/script>
+      </body>
+    </html>
+  `);
+  popup.document.close();
 }
 
 function showAuthForm() {
   const authContainer = document.querySelector("#auth-container");
   const appContent = document.querySelector("#app-content");
+  const logoutButton = document.querySelector("#logout-button");
+  const changePasswordButton = document.querySelector("#change-password-button");
 
   if (authContainer) {
     authContainer.hidden = false;
@@ -146,12 +506,25 @@ function showAuthForm() {
     appContent.hidden = true;
     appContent.style.display = "none";
   }
+
+  if (logoutButton) {
+    logoutButton.hidden = true;
+    logoutButton.style.display = "none";
+  }
+
+  if (changePasswordButton) {
+    changePasswordButton.hidden = true;
+    changePasswordButton.style.display = "none";
+  }
+
+  ensurePasswordField();
 }
 
 function showAppContent() {
   const authContainer = document.querySelector("#auth-container");
   const appContent = document.querySelector("#app-content");
   const logoutButton = document.querySelector("#logout-button");
+  const changePasswordButton = document.querySelector("#change-password-button");
 
   if (authContainer) {
     authContainer.hidden = true;
@@ -166,6 +539,11 @@ function showAppContent() {
   if (logoutButton) {
     logoutButton.hidden = false;
     logoutButton.style.display = "";
+  }
+
+  if (changePasswordButton) {
+    changePasswordButton.hidden = false;
+    changePasswordButton.style.display = "";
   }
 }
 
@@ -221,6 +599,7 @@ async function handleCPFLogin(event) {
   console.log("submit capturado");
 
   const cpfInput = document.querySelector("#cpf-input");
+  const passwordInput = document.querySelector("#password-input");
   const button = document.querySelector("#login-button");
 
   try {
@@ -230,8 +609,9 @@ async function handleCPFLogin(event) {
     }
 
     const cpf = cpfInput ? cpfInput.value : "";
+    const password = passwordInput ? passwordInput.value : "";
 
-    await loginWithCPF(cpf);
+    await loginWithCPFAndPassword(cpf, password);
 
     console.log("Login autorizado:", currentEmployee);
 
@@ -243,6 +623,10 @@ async function handleCPFLogin(event) {
     }
 
     loginInProgress = false;
+
+    if (currentEmployee?.must_change_password) {
+      showToastSafe("Primeiro acesso identificado. Altere sua senha quando quiser.");
+    }
 
     if (typeof initApp === "function") {
       initApp()
@@ -283,6 +667,9 @@ function getCurrentEmployee() {
 }
 
 function setupAuthListeners() {
+  ensurePasswordField();
+  ensurePasswordChangeButton();
+
   const cpfInput = document.querySelector("#cpf-input");
   const cpfForm = document.querySelector("#cpf-form");
   const loginButton = document.querySelector("#login-button");
