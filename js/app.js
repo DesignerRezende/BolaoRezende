@@ -325,11 +325,27 @@ function renderLiveBox() {
   const closed = isGuessClosed(match);
   const countdown = getCountdownText(match);
   const closeTime = getGuessCloseDate(match);
+  const homeTeam = findWorldCupTeamByName(match.home_team);
+  const awayTeam = findWorldCupTeamByName(match.away_team);
 
   liveBox.innerHTML = `
-    <div class="live-score">
-      <span>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</span>
-      <strong>${formatScore(match)}</strong>
+    <div class="next-match-card">
+      <div class="next-match-team">
+        <span class="next-match-flag">${renderMatchFlag(homeTeam, match.home_team)}</span>
+        <strong>${escapeHtml(getMatchTeamCode(homeTeam, match.home_team))}</strong>
+        <small>${escapeHtml(match.home_team)}</small>
+      </div>
+
+      <div class="next-match-center">
+        <span class="next-match-score">${formatScore(match)}</span>
+        <span class="next-match-vs">VS</span>
+      </div>
+
+      <div class="next-match-team">
+        <span class="next-match-flag">${renderMatchFlag(awayTeam, match.away_team)}</span>
+        <strong>${escapeHtml(getMatchTeamCode(awayTeam, match.away_team))}</strong>
+        <small>${escapeHtml(match.away_team)}</small>
+      </div>
     </div>
 
     <div class="countdown-box">

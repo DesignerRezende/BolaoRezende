@@ -2845,3 +2845,145 @@ body.floating-panel-open .bottom-nav {
     font-size: 0.68rem !important;
   }
 }
+/* =========================================================
+   CORREÇÃO · PRÓXIMO JOGO COM BANDEIRAS MENORES
+   Cole no FINAL do style.css
+========================================================= */
+
+.next-match-card {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 10px !important;
+
+  border: 1px solid rgba(255, 223, 0, 0.16) !important;
+  border-radius: 18px !important;
+
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.08), transparent 34%),
+    rgba(15, 23, 42, 0.68) !important;
+
+  padding: 14px 12px !important;
+}
+
+.next-match-team {
+  display: grid !important;
+  justify-items: center !important;
+  align-items: start !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  text-align: center !important;
+}
+
+.next-match-flag {
+  display: grid !important;
+  place-items: center !important;
+  overflow: hidden !important;
+
+  width: 54px !important;
+  height: 40px !important;
+
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 14px !important;
+
+  background:
+    linear-gradient(135deg, rgba(0, 156, 59, 0.18), rgba(255, 223, 0, 0.10)) !important;
+
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32) !important;
+}
+
+.next-match-flag img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: cover !important;
+}
+
+.next-match-team strong {
+  color: #ffffff !important;
+  font-size: 0.8rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+}
+
+.next-match-team small {
+  display: -webkit-box !important;
+  max-width: 88px !important;
+  min-height: 2.2em !important;
+  overflow: hidden !important;
+
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+
+  white-space: normal !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+.next-match-center {
+  display: grid !important;
+  justify-items: center !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.next-match-score {
+  color: var(--primary-yellow) !important;
+  font-size: 0.9rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.next-match-vs {
+  display: grid !important;
+  place-items: center !important;
+
+  width: 30px !important;
+  height: 30px !important;
+
+  border: 1px solid rgba(255, 223, 0, 0.26) !important;
+  border-radius: 999px !important;
+
+  background: rgba(255, 223, 0, 0.10) !important;
+  color: var(--primary-yellow) !important;
+
+  font-size: 0.68rem !important;
+  font-weight: 900 !important;
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  .next-match-card {
+    gap: 7px !important;
+    padding: 13px 9px !important;
+  }
+
+  .next-match-flag {
+    width: 48px !important;
+    height: 36px !important;
+    border-radius: 12px !important;
+  }
+
+  .next-match-team strong {
+    font-size: 0.76rem !important;
+  }
+
+  .next-match-team small {
+    max-width: 76px !important;
+    font-size: 0.62rem !important;
+  }
+
+  .next-match-score {
+    font-size: 0.78rem !important;
+  }
+
+  .next-match-vs {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 0.62rem !important;
+  }
+}
