@@ -148,6 +148,7 @@ async function adminListMatches() {
 
 async function adminCreateMatch(payload) {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("matches")
     .insert(payload)
@@ -160,6 +161,7 @@ async function adminCreateMatch(payload) {
 
 async function adminUpdateMatch(matchId, payload) {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("matches")
     .update(payload)
@@ -169,6 +171,24 @@ async function adminUpdateMatch(matchId, payload) {
 
   if (error) throw withRlsHint(error, "update", "matches");
   return data;
+}
+
+async function adminDeleteMatch(matchId) {
+  const client = getSupabaseClient();
+
+  const { error: guessesError } = await client
+    .from("guesses")
+    .delete()
+    .eq("match_id", matchId);
+
+  if (guessesError) throw withRlsHint(guessesError, "delete", "guesses");
+
+  const { error: matchError } = await client
+    .from("matches")
+    .delete()
+    .eq("id", matchId);
+
+  if (matchError) throw withRlsHint(matchError, "delete", "matches");
 }
 
 async function adminListRanking() {
@@ -200,7 +220,7 @@ async function adminListRanking() {
         Math.sign(Number(match.home_score) - Number(match.away_score));
 
       if (exact) exactScores += 1;
-      if (result) resultHits += 1;
+      if (!exact && result) resultHits += 1;
     });
 
     const prediction = predictionsByParticipant.get(row.participant_id);
@@ -218,6 +238,7 @@ async function adminListRanking() {
 
 async function adminListGuesses() {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("guesses")
     .select(`
@@ -233,6 +254,7 @@ async function adminListGuesses() {
 
 async function adminListParticipantPredictions() {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("participant_predictions")
     .select(`
@@ -287,6 +309,7 @@ async function adminSearchParticipants(searchTerm) {
 
 async function adminDeleteParticipantPredictions(participantId) {
   const client = getSupabaseClient();
+
   const { error } = await client
     .from("participant_predictions")
     .delete()
@@ -297,6 +320,7 @@ async function adminDeleteParticipantPredictions(participantId) {
 
 async function adminDeleteParticipantGuesses(participantId) {
   const client = getSupabaseClient();
+
   const { error } = await client
     .from("guesses")
     .delete()
@@ -307,6 +331,7 @@ async function adminDeleteParticipantGuesses(participantId) {
 
 async function adminDeleteParticipant(participantId) {
   const client = getSupabaseClient();
+
   const { error } = await client
     .from("participants")
     .delete()
@@ -389,12 +414,19 @@ function renderAdminMatches() {
         </label>
       </div>
 
-      <button type="submit">Salvar resultado</button>
+      <div class="admin-match-card__actions">
+        <button type="submit">Salvar alterações</button>
+        <button class="admin-mini-danger" type="button" data-delete-match="${escapeHtml(match.id)}">Excluir jogo</button>
+      </div>
     </form>
   `).join("");
 
   list.querySelectorAll(".admin-match-card").forEach((form) => {
     form.addEventListener("submit", handleUpdateMatch);
+  });
+
+  list.querySelectorAll("[data-delete-match]").forEach((button) => {
+    button.addEventListener("click", handleDeleteMatch);
   });
 }
 
@@ -408,7 +440,7 @@ async function handleCreateMatch(event) {
     await adminCreateMatch({
       home_team: String(formData.get("home_team") || "").trim(),
       away_team: String(formData.get("away_team") || "").trim(),
-      match_date: toIsoDateTime(formData.get("match_date")),
+      match_date: toDatabaseDateTime(formData.get("match_date")),
       phase: String(formData.get("phase") || "").trim() || null,
       status: String(formData.get("status") || "aberto"),
       home_score: null,
@@ -432,21 +464,73 @@ async function handleUpdateMatch(event) {
   const matchId = form.dataset.matchId;
 
   try {
-    await adminUpdateMatch(matchId, {
-      home_team: String(formData.get("home_team") || "").trim(),
-      away_team: String(formData.get("away_team") || "").trim(),
-      match_date: toIsoDateTime(formData.get("match_date")),
-      phase: String(formData.get("phase") || "").trim() || null,
-      status: String(formData.get("status") || "aberto"),
-      home_score: normalizeNullableNumber(formData.get("home_score")),
-      away_score: normalizeNullableNumber(formData.get("away_score"))
-    });
+    const payload = buildMatchPayloadFromForm(formData);
+
+    await adminUpdateMatch(matchId, payload);
 
     showAdminToast("Resultado atualizado.");
     await Promise.all([loadAdminMatches(), loadAdminRanking(), loadAdminGuesses()]);
   } catch (error) {
     showAdminToast(error.message);
   }
+}
+
+async function handleDeleteMatch(event) {
+  const button = event.currentTarget;
+  const matchId = button.dataset.deleteMatch;
+  const form = button.closest(".admin-match-card");
+  const title = form?.querySelector(".admin-match-card__header strong")?.textContent || "este jogo";
+
+  const confirmed = window.confirm(
+    `Tem certeza que deseja excluir ${title}?\n\nIsso também remove os palpites desse jogo e não pode ser desfeito.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    button.disabled = true;
+    button.textContent = "Excluindo...";
+
+    await adminDeleteMatch(matchId);
+
+    showAdminToast("Jogo excluído.");
+    await Promise.all([loadAdminMatches(), loadAdminRanking(), loadAdminGuesses()]);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Excluir jogo";
+    showAdminToast(error.message);
+  }
+}
+
+function buildMatchPayloadFromForm(formData) {
+  const homeScore = normalizeNullableNumber(formData.get("home_score"));
+  const awayScore = normalizeNullableNumber(formData.get("away_score"));
+  let status = String(formData.get("status") || "aberto");
+
+  const hasHomeScore = homeScore !== null;
+  const hasAwayScore = awayScore !== null;
+
+  if (hasHomeScore !== hasAwayScore) {
+    throw new Error("Preencha os dois placares ou deixe os dois em branco.");
+  }
+
+  if (hasHomeScore && hasAwayScore) {
+    status = "encerrado";
+  }
+
+  if (!hasHomeScore && !hasAwayScore && status === "encerrado") {
+    status = "aberto";
+  }
+
+  return {
+    home_team: String(formData.get("home_team") || "").trim(),
+    away_team: String(formData.get("away_team") || "").trim(),
+    match_date: toDatabaseDateTime(formData.get("match_date")),
+    phase: String(formData.get("phase") || "").trim() || null,
+    status,
+    home_score: homeScore,
+    away_score: awayScore
+  };
 }
 
 async function loadAdminRanking() {
@@ -584,6 +668,7 @@ function renderAdminPredictions() {
   body.querySelectorAll("[data-delete-prediction]").forEach((button) => {
     button.addEventListener("click", async () => {
       if (!confirmDanger()) return;
+
       try {
         await adminDeleteParticipantPredictions(button.dataset.deletePrediction);
         showAdminToast("Escolha removida.");
@@ -600,6 +685,7 @@ async function handleParticipantSearch(event) {
 
   const results = document.querySelector("#admin-participant-results");
   const search = document.querySelector("#admin-participant-search")?.value || "";
+
   if (results) results.innerHTML = '<p class="empty">Buscando...</p>';
 
   try {
@@ -707,9 +793,11 @@ function exportGuessesCsv() {
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+
   link.href = url;
   link.download = `palpites-bolao-rezende-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
+
   URL.revokeObjectURL(url);
 }
 
@@ -718,9 +806,11 @@ function fillGuessMatchFilter() {
   if (!select) return;
 
   const currentValue = select.value;
+
   select.innerHTML = '<option value="">Todos</option>' + adminState.matches.map((match) => `
     <option value="${escapeHtml(match.id)}">${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)} - ${formatAdminDate(match.match_date)}</option>
   `).join("");
+
   select.value = currentValue;
 }
 
@@ -741,26 +831,84 @@ function renderStatusOptions(value) {
 
 function normalizeNullableNumber(value) {
   if (value === null || value === undefined || value === "") return null;
-  return Number(value);
+
+  const number = Number(value);
+
+  if (Number.isNaN(number)) {
+    return null;
+  }
+
+  return number;
 }
 
-function toIsoDateTime(value) {
+function toDatabaseDateTime(value) {
   if (!value) return null;
-  return new Date(value).toISOString();
+
+  const normalized = String(value).trim();
+
+  if (!normalized) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalized)) {
+    return normalized.replace("T", " ") + ":00";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    return normalized.replace("T", " ");
+  }
+
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
+    return normalized.length === 16 ? normalized + ":00" : normalized;
+  }
+
+  const date = new Date(normalized);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const year = date.getFullYear();
+  const month = pad2(date.getMonth() + 1);
+  const day = pad2(date.getDate());
+  const hour = pad2(date.getHours());
+  const minute = pad2(date.getMinutes());
+  const second = pad2(date.getSeconds());
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 function formatDateTimeLocal(value) {
   if (!value) return "";
+
+  const raw = String(value).trim();
+
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(raw)) {
+    return raw.replace(" ", "T").slice(0, 16);
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) {
+    return raw.slice(0, 16);
+  }
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return "";
-  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return offsetDate.toISOString().slice(0, 16);
+
+  const year = date.getFullYear();
+  const month = pad2(date.getMonth() + 1);
+  const day = pad2(date.getDate());
+  const hour = pad2(date.getHours());
+  const minute = pad2(date.getMinutes());
+
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function formatAdminDate(value) {
   if (!value) return "-";
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return "-";
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -801,6 +949,10 @@ function statusClass(status) {
   return `status-${normalized}`;
 }
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -817,6 +969,7 @@ function csvCell(value) {
 function withRlsHint(error, action, table) {
   const message = String(error?.message || "");
   const isRls = message.toLowerCase().includes("row-level security") || error?.code === "42501";
+
   if (!isRls) return error;
 
   return new Error(`${message} Crie uma policy de ${action} para a tabela ${table}. Veja supabase/update_admin_policies.sql.`);
