@@ -24,6 +24,7 @@ function getSupabaseClient() {
 
 async function createParticipant(participant) {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("participants")
     .insert({
@@ -40,6 +41,7 @@ async function createParticipant(participant) {
 
 async function listMatches() {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("matches")
     .select("*")
@@ -53,6 +55,7 @@ async function listParticipantGuesses(participantId) {
   if (!participantId) return [];
 
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("guesses")
     .select("*")
@@ -64,10 +67,12 @@ async function listParticipantGuesses(participantId) {
 
 async function listWorldCupTeams() {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("world_cup_teams")
     .select("id, name, code, flag_url, flag_emoji, group_name")
-    .eq("active", true);
+    .eq("active", true)
+    .order("name", { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -75,10 +80,12 @@ async function listWorldCupTeams() {
 
 async function listBrazilSquadPlayers() {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("brazil_squad_players")
-    .select("id, name, position, photo_url")
-    .eq("active", true);
+    .select("id, name, position")
+    .eq("active", true)
+    .order("name", { ascending: true });
 
   if (error) throw error;
   return data || [];
@@ -88,6 +95,7 @@ async function getParticipantPrediction(participantId) {
   if (!participantId) return null;
 
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("participant_predictions")
     .select(`
@@ -103,8 +111,7 @@ async function getParticipantPrediction(participantId) {
       top_scorer_player:brazil_squad_players (
         id,
         name,
-        position,
-        photo_url
+        position
       )
     `)
     .eq("participant_id", participantId)
@@ -133,6 +140,7 @@ async function saveParticipantPrediction(payload) {
 
 async function registerGuess(guess) {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("guesses")
     .upsert({
@@ -161,14 +169,13 @@ function calculatePoints(guess, match) {
 
   const realResult = Math.sign(match.home_score - match.away_score);
   const guessResult = Math.sign(guess.home_score_guess - guess.away_score_guess);
-  let points = realResult === guessResult ? 3 : 0;
 
-  if (guess.home_score_guess === match.home_score) points += 1;
-  return points;
+  return realResult === guessResult ? 3 : 0;
 }
 
 async function listAllGuesses() {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("guesses")
     .select("*");
@@ -179,6 +186,7 @@ async function listAllGuesses() {
 
 async function listParticipants() {
   const client = getSupabaseClient();
+
   const { data, error } = await client
     .from("participants")
     .select("*")
@@ -190,6 +198,7 @@ async function listParticipants() {
 
 async function updateGuessPoints(guessId, points) {
   const client = getSupabaseClient();
+
   const { error } = await client
     .from("guesses")
     .update({ points })
@@ -200,6 +209,7 @@ async function updateGuessPoints(guessId, points) {
 
 async function getGuessCounts() {
   const guesses = await listAllGuesses();
+
   return guesses.reduce((acc, guess) => {
     acc[guess.match_id] = (acc[guess.match_id] || 0) + 1;
     return acc;
@@ -221,16 +231,20 @@ async function listRanking() {
     rankingMap.set(participant.id, {
       participant,
       points: 0,
-      guesses: 0
+      guesses: 0,
+      exactScores: 0,
+      resultHits: 0
     });
   });
 
   for (const guess of guesses) {
     const participant = participantById.get(guess.participant_id);
     const match = matchById.get(guess.match_id);
+
     if (!participant || !match) continue;
 
     const points = calculatePoints(guess, match);
+
     if (guess.points !== points) {
       updateGuessPoints(guess.id, points).catch(console.error);
     }
@@ -238,16 +252,39 @@ async function listRanking() {
     const row = rankingMap.get(participant.id);
     row.points += points;
     row.guesses += 1;
+
+    if (match.status === "encerrado" && match.home_score !== null && match.away_score !== null) {
+      const exactScore =
+        guess.home_score_guess === match.home_score &&
+        guess.away_score_guess === match.away_score;
+
+      const realResult = Math.sign(match.home_score - match.away_score);
+      const guessResult = Math.sign(guess.home_score_guess - guess.away_score_guess);
+
+      if (exactScore) {
+        row.exactScores += 1;
+      } else if (realResult === guessResult) {
+        row.resultHits += 1;
+      }
+    }
   }
 
   return [...rankingMap.values()]
-    .sort((a, b) => b.points - a.points || b.guesses - a.guesses || a.participant.name.localeCompare(b.participant.name))
+    .sort((a, b) =>
+      b.points - a.points ||
+      b.exactScores - a.exactScores ||
+      b.resultHits - a.resultHits ||
+      b.guesses - a.guesses ||
+      a.participant.name.localeCompare(b.participant.name)
+    )
     .map((row, index) => ({
       participant_id: row.participant.id,
       position: index + 1,
       name: row.participant.name,
       store_sector: row.participant.store_sector,
       points: row.points,
-      guesses: row.guesses
+      guesses: row.guesses,
+      exactScores: row.exactScores,
+      resultHits: row.resultHits
     }));
 }

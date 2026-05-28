@@ -1850,3 +1850,591 @@ tr.is-current-participant td {
     max-height: 102px;
   }
 }
+
+/* =========================================================
+   AJUSTE NOVO · COPA COMPLETA / ACORDEÃO / BOTÕES / FONTES
+   Bloco integrado ao CSS base enviado
+========================================================= */
+
+/* Mantém a lista dos jogos em uma coluna, porque agora cada grupo/fase vira um acordeão */
+.matches-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 14px !important;
+}
+
+/* Acordeão dos grupos e fases */
+.phase-accordion {
+  display: grid;
+  gap: 0;
+  overflow: visible;
+  border: 1px solid rgba(0, 156, 59, 0.22);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.05), transparent 34%),
+    rgba(10, 22, 50, 0.78);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.42);
+}
+
+.phase-accordion + .phase-accordion {
+  margin-top: 14px;
+}
+
+/* Botão de abrir/recolher grupo */
+.phase-accordion__header {
+  position: sticky;
+  top: 92px;
+  z-index: 12;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 62px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.08), transparent 38%),
+    linear-gradient(135deg, rgba(20, 27, 77, 0.98), rgba(5, 11, 26, 0.98));
+  color: #ffffff;
+  padding: 15px 18px;
+  text-align: left;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.40);
+  text-transform: uppercase;
+}
+
+.phase-accordion__header:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.phase-accordion.is-open .phase-accordion__header {
+  border-color: rgba(255, 223, 0, 0.36);
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.12), transparent 40%),
+    linear-gradient(135deg, rgba(20, 27, 77, 1), rgba(5, 11, 26, 0.98));
+  box-shadow:
+    0 0 0 3px rgba(255, 223, 0, 0.08),
+    0 14px 32px rgba(0, 0, 0, 0.44);
+}
+
+.phase-accordion.is-locked .phase-accordion__header {
+  opacity: 0.86;
+  border-color: rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(148, 163, 184, 0.10), transparent 38%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(2, 8, 23, 0.96));
+}
+
+/* Nome do grupo/fase */
+.phase-accordion__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--primary-yellow);
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Quantidade de jogos / em breve */
+.phase-accordion__meta {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 8px 10px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* Ícone + / - */
+.phase-accordion__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 223, 0, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 223, 0, 0.12);
+  color: var(--primary-yellow);
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Corpo aberto */
+.phase-accordion__body {
+  padding: 14px;
+}
+
+/* Grid dos jogos dentro do grupo */
+.phase-matches-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+/* Card de fase bloqueada */
+.phase-locked-card {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed rgba(255, 223, 0, 0.26);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.08), transparent 34%),
+    rgba(15, 23, 42, 0.56);
+  padding: 18px;
+}
+
+.phase-locked-card strong {
+  color: var(--primary-yellow);
+  font-size: 1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.phase-locked-card span {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+/* Card dos jogos com estética mais próxima do painel admin */
+.match-card {
+  border-radius: 20px !important;
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.04), transparent 34%),
+    rgba(10, 22, 50, 0.82) !important;
+  border: 1px solid rgba(0, 156, 59, 0.20) !important;
+  padding: 18px !important;
+}
+
+.match-meta {
+  color: rgba(255, 255, 255, 0.60) !important;
+  font-size: 0.82rem !important;
+  font-weight: 900 !important;
+}
+
+.match-timer {
+  color: var(--primary-yellow) !important;
+  font-size: 0.95rem !important;
+  font-weight: 900 !important;
+}
+
+.match-countdown {
+  color: var(--green-light) !important;
+  font-size: 0.78rem !important;
+  font-weight: 900 !important;
+}
+
+.status {
+  min-height: 34px;
+  border-radius: 999px !important;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+  padding: 9px 12px !important;
+}
+
+/* Inputs de placar */
+.guess-score input {
+  min-height: 54px !important;
+  border-radius: 14px !important;
+  background: rgba(15, 23, 42, 0.78) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+  color: var(--primary-yellow) !important;
+  font-size: 1.45rem !important;
+  font-weight: 900 !important;
+  text-align: center !important;
+}
+
+/* Botão salvar/atualizar palpite */
+.match-card__footer button,
+.guess-form button {
+  width: 100% !important;
+  min-height: 56px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(135deg, var(--primary-yellow) 0%, var(--primary-orange) 100%) !important;
+  color: #000000 !important;
+  font-size: 0.86rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase !important;
+  box-shadow:
+    0 8px 18px rgba(255, 140, 0, 0.22),
+    0 0 22px rgba(255, 223, 0, 0.12) !important;
+}
+
+.match-card__footer button:disabled,
+.guess-form button:disabled {
+  background: rgba(148, 163, 184, 0.22) !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  box-shadow: none !important;
+}
+
+.match-team strong {
+  color: #ffffff !important;
+  font-size: 0.8rem !important;
+  font-weight: 900 !important;
+}
+
+.match-team span:last-child {
+  color: rgba(255, 255, 255, 0.56) !important;
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+}
+
+.match-team__flag {
+  width: 54px !important;
+  height: 40px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background:
+    linear-gradient(135deg, rgba(0, 156, 59, 0.18), rgba(255, 223, 0, 0.10)) !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32) !important;
+}
+
+.match-team__flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.saved-guess {
+  border-radius: 16px !important;
+  background: rgba(15, 23, 42, 0.68) !important;
+  border: 1px solid rgba(255, 223, 0, 0.12) !important;
+}
+
+.saved-guess strong {
+  color: #ffffff !important;
+  font-weight: 900 !important;
+}
+
+.saved-guess span {
+  color: rgba(255, 255, 255, 0.56) !important;
+  font-weight: 900 !important;
+}
+
+@media (min-width: 681px) {
+  .phase-matches-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .phase-accordion__header {
+    top: 72px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    border-radius: 16px;
+    padding: 13px 14px;
+  }
+
+  .phase-accordion__meta {
+    display: none;
+  }
+
+  .phase-accordion__body {
+    padding: 10px;
+  }
+
+  .phase-accordion__title {
+    font-size: 0.86rem;
+  }
+
+  .phase-accordion__icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .match-card {
+    padding: 15px !important;
+  }
+
+  .guess-form {
+    grid-template-columns: minmax(54px, 1fr) 48px auto 48px minmax(54px, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .guess-score input {
+    min-height: 48px !important;
+    font-size: 1.24rem !important;
+  }
+
+  .match-team__flag {
+    width: 46px !important;
+    height: 34px !important;
+  }
+}
+
+/* =========================================================
+   TOPO STICKY COM BLUR + TEXTO BRANCO/DOURADO
+   Cole no FINAL do style.css
+========================================================= */
+
+/* Topo congelado com fundo embaçado */
+.topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 999 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background:
+    linear-gradient(180deg, rgba(2, 5, 12, 0.82), rgba(2, 5, 12, 0.58)) !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+  box-shadow:
+    0 10px 34px rgba(0, 0, 0, 0.38),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+/* Linha sutil colorida no topo */
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--primary-green) 0%,
+    var(--primary-yellow) 50%,
+    var(--brand-blue) 100%
+  );
+  opacity: 0.95;
+}
+
+/* Container do topo */
+.topbar__inner {
+  min-height: 86px !important;
+  padding: 12px 0 !important;
+}
+
+/* Centraliza e organiza a marca no topo */
+.topbar-brand {
+  display: grid !important;
+  justify-items: center !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+/* Logo menor no topo, para abrir espaço para título */
+.topbar-logo {
+  width: min(210px, 54vw) !important;
+  max-height: 54px !important;
+  object-fit: contain !important;
+  filter:
+    drop-shadow(0 0 12px rgba(255, 223, 0, 0.16))
+    drop-shadow(0 10px 18px rgba(0, 0, 0, 0.34)) !important;
+}
+
+/* Cria o título TORCIDA REZENDE no topo sem mexer no HTML */
+.topbar-brand::after {
+  content: "TORCIDA REZENDE";
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: clamp(1.05rem, 2.2vw, 1.75rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 42%,
+    var(--primary-yellow) 63%,
+    #ffb800 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.34));
+}
+
+/* Botões no topo mais elegantes */
+.topbar-actions .button-logout,
+.button-logout {
+  border: 1px solid rgba(255, 223, 0, 0.24) !important;
+  border-radius: 999px !important;
+  background: rgba(10, 22, 50, 0.72) !important;
+  color: var(--primary-yellow) !important;
+  font-size: 0.72rem !important;
+  font-weight: 900 !important;
+  box-shadow: none !important;
+}
+
+/* Dá respiro para o conteúdo não colar no topo */
+.layout {
+  padding-top: 22px !important;
+}
+
+/* Ajuste do hero para combinar com o topo embaçado */
+.hero {
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Títulos principais com efeito branco/dourado */
+.hero h2,
+.section-title h2,
+.rules-panel h2 {
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 48%,
+    var(--primary-yellow) 74%,
+    #ffb800 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+/* Mantém spans amarelos do hero ainda mais vivos */
+.hero h2 span {
+  background: linear-gradient(90deg, var(--primary-yellow), #ffb800);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  .topbar__inner {
+    min-height: 72px !important;
+    padding: 9px 0 !important;
+  }
+
+  .topbar-logo {
+    width: min(150px, 44vw) !important;
+    max-height: 42px !important;
+  }
+
+  .topbar-brand::after {
+    font-size: clamp(0.86rem, 4.4vw, 1.08rem);
+    letter-spacing: -0.035em;
+  }
+
+  .layout {
+    padding-top: 14px !important;
+  }
+}/* =========================================================
+   TOPO SEMPRE FIXO COM BLUR AO ROLAR
+   Cole no FINAL do style.css
+========================================================= */
+
+.topbar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  z-index: 3000 !important;
+
+  background:
+    linear-gradient(180deg, rgba(2, 5, 12, 0.88), rgba(2, 5, 12, 0.62)) !important;
+
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Faixa colorida do topo */
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--primary-green) 0%,
+    var(--primary-yellow) 50%,
+    var(--brand-blue) 100%
+  );
+  opacity: 0.95;
+}
+
+/* Compensa o topo fixo para o conteúdo não ficar escondido atrás */
+#app-content {
+  padding-top: 96px !important;
+}
+
+/* Ajuste do topo no desktop */
+.topbar__inner {
+  min-height: 88px !important;
+  padding: 10px 0 !important;
+}
+
+/* Mantém o título branco/dourado */
+.topbar-brand::after {
+  content: "TORCIDA REZENDE";
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: clamp(1.05rem, 2.2vw, 1.75rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  background: linear-gradient(
+    90deg,
+    #ffffff 0%,
+    #ffffff 42%,
+    var(--primary-yellow) 63%,
+    #ffb800 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.34));
+}
+
+/* Logo no topo */
+.topbar-logo {
+  width: min(210px, 54vw) !important;
+  max-height: 54px !important;
+  object-fit: contain !important;
+}
+
+/* Ajusta os acordeões sticky para não entrarem por baixo do topo fixo */
+.phase-accordion__header {
+  top: 104px !important;
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  #app-content {
+    padding-top: 82px !important;
+  }
+
+  .topbar__inner {
+    min-height: 76px !important;
+    padding: 8px 0 !important;
+  }
+
+  .topbar-logo {
+    width: min(150px, 44vw) !important;
+    max-height: 40px !important;
+  }
+
+  .topbar-brand::after {
+    font-size: clamp(0.86rem, 4.4vw, 1.08rem);
+    letter-spacing: -0.035em;
+  }
+
+  .phase-accordion__header {
+    top: 86px !important;
+  }
+}

@@ -17,13 +17,15 @@ const adminLoginMessage = document.querySelector("#admin-login-message");
 const adminLogoutButton = document.querySelector("#admin-logout-button");
 const adminToast = document.querySelector("#admin-toast");
 
+console.log("admin.js carregado");
+
 document.addEventListener("DOMContentLoaded", initAdmin);
 
 function initAdmin() {
   bindAdminEvents();
 
   if (localStorage.getItem(ADMIN_STORAGE_KEY) === "true") {
-    showAdminApp();
+    showAdminPanel();
   } else {
     showAdminLogin();
   }
@@ -31,6 +33,9 @@ function initAdmin() {
 
 function bindAdminEvents() {
   adminLoginForm?.addEventListener("submit", handleAdminLogin);
+  adminLoginForm?.querySelector('button[type="submit"]')?.addEventListener("click", () => {
+    console.log("Clique no login admin");
+  });
   adminLogoutButton?.addEventListener("click", handleAdminLogout);
 
   document.querySelectorAll("[data-admin-tab]").forEach((button) => {
@@ -56,39 +61,70 @@ function bindAdminEvents() {
 function handleAdminLogin(event) {
   event.preventDefault();
 
-  if (adminPassword?.value === ADMIN_PASSWORD) {
+  const password = adminPassword ? adminPassword.value.trim() : "";
+
+  console.log("Clique no login admin");
+  console.log("Senha digitada:", password);
+  console.log("Senha confere:", password === ADMIN_PASSWORD);
+
+  if (password === ADMIN_PASSWORD) {
     localStorage.setItem(ADMIN_STORAGE_KEY, "true");
     if (adminLoginMessage) adminLoginMessage.hidden = true;
-    showAdminApp();
+    showAdminPanel();
     return;
   }
 
-  if (adminLoginMessage) {
-    adminLoginMessage.textContent = "Senha incorreta.";
-    adminLoginMessage.hidden = false;
-  }
+  showAdminError("Senha incorreta.");
 }
 
 function handleAdminLogout() {
   localStorage.removeItem(ADMIN_STORAGE_KEY);
-  showAdminLogin();
+  location.reload();
 }
 
 function showAdminLogin() {
-  if (adminLogin) adminLogin.hidden = false;
-  if (adminApp) adminApp.hidden = true;
+  if (adminLogin) {
+    adminLogin.hidden = false;
+    adminLogin.style.display = "flex";
+  }
+
+  if (adminApp) {
+    adminApp.hidden = true;
+    adminApp.style.display = "none";
+  }
 }
 
-async function showAdminApp() {
-  if (adminLogin) adminLogin.hidden = true;
-  if (adminApp) adminApp.hidden = false;
+async function showAdminPanel() {
+  if (adminLogin) {
+    adminLogin.hidden = true;
+    adminLogin.style.display = "none";
+  }
 
-  await Promise.all([
-    loadAdminMatches(),
-    loadAdminRanking(),
-    loadAdminGuesses(),
-    loadAdminPredictions()
-  ]);
+  if (adminApp) {
+    adminApp.hidden = false;
+    adminApp.style.display = "";
+  }
+
+  try {
+    await Promise.all([
+      loadAdminMatches(),
+      loadAdminRanking(),
+      loadAdminGuesses(),
+      loadAdminPredictions()
+    ]);
+  } catch (error) {
+    console.error(error);
+    showAdminError("Erro ao acessar painel admin.");
+  }
+}
+
+function showAdminError(message) {
+  if (adminLoginMessage) {
+    adminLoginMessage.textContent = message;
+    adminLoginMessage.hidden = false;
+  }
+
+  showAdminToast(message);
 }
 
 function activateAdminTab(tab) {
