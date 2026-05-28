@@ -3254,3 +3254,38 @@ body.floating-panel-open .bottom-nav {
     font-size: 12px !important;
   }
 }
+/* =========================================================
+   BOTÃO WHATSAPP NO RODAPÉ DO BOLÃO
+========================================================= */
+
+.bottom-nav__button--whatsapp {
+  background: linear-gradient(135deg, #00b050, #057a38) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(135, 255, 181, 0.45) !important;
+  text-decoration: none !important;
+  box-shadow: 0 8px 22px rgba(0, 176, 80, 0.28) !important;
+}
+
+.bottom-nav__button--whatsapp span,
+.bottom-nav__button--whatsapp strong {
+  color: #ffffff !important;
+}
+
+.bottom-nav__button--whatsapp:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 176, 80, 0.34) !important;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .bottom-nav__button--whatsapp {
+    min-width: 0 !important;
+  }
+
+  .bottom-nav__button--whatsapp strong {
+    font-size: 11px !important;
+  }
+}
