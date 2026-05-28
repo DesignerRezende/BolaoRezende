@@ -149,28 +149,26 @@ async function adminListMatches() {
 async function adminCreateMatch(payload) {
   const client = getSupabaseClient();
 
-  const { data, error } = await client
+  const { error } = await client
     .from("matches")
-    .insert(payload)
-    .select()
-    .single();
+    .insert(payload);
 
   if (error) throw withRlsHint(error, "insert", "matches");
-  return data;
+
+  return true;
 }
 
 async function adminUpdateMatch(matchId, payload) {
   const client = getSupabaseClient();
 
-  const { data, error } = await client
+  const { error } = await client
     .from("matches")
     .update(payload)
-    .eq("id", matchId)
-    .select()
-    .single();
+    .eq("id", matchId);
 
   if (error) throw withRlsHint(error, "update", "matches");
-  return data;
+
+  return true;
 }
 
 async function adminDeleteMatch(matchId) {
