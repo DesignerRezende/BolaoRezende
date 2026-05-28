@@ -245,10 +245,12 @@ function openPasswordWindow() {
   window.__bolaoChangePassword = changeCurrentEmployeePassword;
   window.__bolaoShowToast = showToastSafe;
 
+  const isMobile = window.matchMedia("(max-width: 768px)").matches;
+
   const popup = window.open(
     "",
     "alterarSenhaBolaoRezende",
-    "width=480,height=640,resizable=yes,scrollbars=yes"
+    isMobile ? "" : "width=480,height=640,resizable=yes,scrollbars=yes"
   );
 
   if (!popup) {
@@ -262,7 +264,7 @@ function openPasswordWindow() {
     <html lang="pt-BR">
       <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
         <title>Alterar senha - Torcida Rezende</title>
 
         <style>
@@ -270,9 +272,17 @@ function openPasswordWindow() {
             box-sizing: border-box;
           }
 
+          html,
+          body {
+            width: 100%;
+            min-height: 100%;
+            overflow-x: hidden;
+          }
+
           body {
             margin: 0;
             min-height: 100vh;
+            min-height: 100dvh;
             font-family: Arial, sans-serif;
             background:
               radial-gradient(circle at top left, rgba(0, 176, 80, 0.24), transparent 35%),
@@ -296,15 +306,17 @@ function openPasswordWindow() {
           }
 
           .eyebrow {
+            display: inline-block;
             color: #ffdd00;
             font-size: 12px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.04em;
+            margin-bottom: 6px;
           }
 
           h1 {
-            margin: 8px 0 8px;
+            margin: 0 0 8px;
             font-size: 34px;
             line-height: 1;
           }
@@ -367,21 +379,23 @@ function openPasswordWindow() {
 
           .actions {
             display: flex;
+            flex-direction: column;
             gap: 12px;
             margin-top: 8px;
           }
 
           button {
+            width: 100%;
             border: 0;
             border-radius: 16px;
             padding: 15px 18px;
             font-weight: 900;
             cursor: pointer;
             text-transform: uppercase;
+            font-size: 14px;
           }
 
           .save {
-            flex: 1;
             background: linear-gradient(135deg, #ffdd00, #ff8a00);
             color: #061020;
             box-shadow: 0 12px 28px rgba(255, 178, 0, 0.28);
@@ -396,6 +410,32 @@ function openPasswordWindow() {
           button:disabled {
             opacity: 0.65;
             cursor: not-allowed;
+          }
+
+          @media (max-width: 768px) {
+            body {
+              align-items: flex-start;
+              justify-content: center;
+              padding: 18px;
+              min-height: 100dvh;
+            }
+
+            .card {
+              width: 100%;
+              max-width: none;
+              margin: 0 auto;
+              padding: 22px;
+              border-radius: 22px;
+            }
+
+            h1 {
+              font-size: 30px;
+            }
+
+            input {
+              font-size: 16px;
+              padding: 15px;
+            }
           }
         </style>
       </head>
