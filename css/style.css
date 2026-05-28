@@ -2437,4 +2437,42 @@ tr.is-current-participant td {
   .phase-accordion__header {
     top: 86px !important;
   }
+}/* =========================================================
+   MOBILE · NOMES DAS SELEÇÕES EM 2 LINHAS
+   Cole no FINAL do style.css
+========================================================= */
+
+.match-team span:last-child {
+  display: -webkit-box !important;
+  max-width: 100% !important;
+  min-height: 2.4em !important;
+  overflow: hidden !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-size: 0.72rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+@media (max-width: 680px) {
+  .match-team {
+    width: 100% !important;
+    max-width: 92px !important;
+  }
+
+  .match-team span:last-child {
+    font-size: 0.68rem !important;
+    line-height: 1.18 !important;
+    min-height: 2.36em !important;
+  }
+
+  .guess-form {
+    grid-template-columns: minmax(62px, 1fr) 50px auto 50px minmax(62px, 1fr) !important;
+  }
 }
