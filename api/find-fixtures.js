@@ -3,7 +3,7 @@ const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
 export default async function handler(req, res) {
   try {
     const secret = req.query.secret;
-    const date = req.query.date;
+    const date = req.query.date || null;
     const league = req.query.league || "1";
     const season = req.query.season || "2026";
 
@@ -14,13 +14,6 @@ export default async function handler(req, res) {
       });
     }
 
-    if (!date) {
-      return res.status(400).json({
-        ok: false,
-        error: "Informe a data. Exemplo: /api/find-fixtures?secret=teste123&date=2026-06-14"
-      });
-    }
-
     if (!process.env.APIFOOTBALL_KEY) {
       return res.status(500).json({
         ok: false,
@@ -28,7 +21,16 @@ export default async function handler(req, res) {
       });
     }
 
-    const url = `${API_FOOTBALL_BASE_URL}/fixtures?league=${encodeURIComponent(league)}&season=${encodeURIComponent(season)}&date=${encodeURIComponent(date)}`;
+    const params = new URLSearchParams({
+      league,
+      season
+    });
+
+    if (date) {
+      params.set("date", date);
+    }
+
+    const url = `${API_FOOTBALL_BASE_URL}/fixtures?${params.toString()}`;
 
     const response = await fetch(url, {
       method: "GET",
@@ -50,8 +52,10 @@ export default async function handler(req, res) {
       fixture_id: item.fixture?.id,
       date: item.fixture?.date,
       status: item.fixture?.status?.short,
+      league_id: item.league?.id,
       league: item.league?.name,
       season: item.league?.season,
+      round: item.league?.round,
       home: item.teams?.home?.name,
       away: item.teams?.away?.name,
       home_goals: item.goals?.home,
