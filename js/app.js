@@ -991,33 +991,44 @@ function renderTodayGames() {
     const homeTeam = findWorldCupTeamByName(match.home_team);
     const awayTeam = findWorldCupTeamByName(match.away_team);
     const locked = isGuessClosed(match);
+    const closeTime = getGuessCloseDate(match);
 
     return `
-      <article class="today-game-card">
-        <div class="today-game-card__top">
+      <article class="today-match-card" data-locked="${locked}">
+        <div class="today-match-card__header">
+          <div>
+            <div class="match-meta">${escapeHtml(match.phase || "Fase não informada")}</div>
+            <div class="match-timer">${getCountdownText(match)}</div>
+            <div class="match-countdown">
+              ${locked ? "Palpites encerrados" : `Palpites abertos até ${formatTime(closeTime)}`}
+            </div>
+          </div>
+
           <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
-          <strong>${formatTime(match.match_date)}</strong>
         </div>
 
-        <div class="today-game-card__teams">
-          <div>
-            <span class="today-game-card__flag">${renderMatchFlag(homeTeam, match.home_team)}</span>
+        <div class="today-match-card__game">
+          <div class="match-team">
+            <span class="match-team__flag">${renderMatchFlag(homeTeam, match.home_team)}</span>
             <strong>${escapeHtml(getMatchTeamCode(homeTeam, match.home_team))}</strong>
-            <small>${escapeHtml(match.home_team)}</small>
+            <span>${escapeHtml(match.home_team)}</span>
           </div>
 
-          <span class="today-game-card__vs">VS</span>
+          <div class="today-match-card__center">
+            <span class="today-match-card__score">${formatScore(match)}</span>
+            <span class="match-versus">VS</span>
+          </div>
 
-          <div>
-            <span class="today-game-card__flag">${renderMatchFlag(awayTeam, match.away_team)}</span>
+          <div class="match-team">
+            <span class="match-team__flag">${renderMatchFlag(awayTeam, match.away_team)}</span>
             <strong>${escapeHtml(getMatchTeamCode(awayTeam, match.away_team))}</strong>
-            <small>${escapeHtml(match.away_team)}</small>
+            <span>${escapeHtml(match.away_team)}</span>
           </div>
         </div>
 
-        <div class="today-game-card__footer">
-          <span>${escapeHtml(match.phase || "Fase não informada")}</span>
-          <span>${locked ? "Palpites encerrados" : `Palpites até ${formatTime(getGuessCloseDate(match))}`}</span>
+        <div class="today-match-card__footer">
+          <span>${formatDate(match.match_date)}</span>
+          <span>${state.guessCounts[match.id] || 0} palpites</span>
         </div>
       </article>
     `;

@@ -2987,3 +2987,225 @@ body.floating-panel-open .bottom-nav {
     font-size: 0.62rem !important;
   }
 }
+/* =========================================================
+   JOGOS DO DIA · MESMO PADRÃO DOS CONFRONTOS
+   Cole no FINAL do style.css
+========================================================= */
+
+.today-games-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 16px !important;
+}
+
+.today-match-card {
+  position: relative !important;
+  overflow: hidden !important;
+  display: grid !important;
+  gap: 16px !important;
+
+  border: 1px solid rgba(0, 156, 59, 0.22) !important;
+  border-radius: 22px !important;
+
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.05), transparent 34%),
+    rgba(10, 22, 50, 0.82) !important;
+
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.40) !important;
+  padding: 18px !important;
+}
+
+.today-match-card::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 0 auto !important;
+  height: 3px !important;
+  background: linear-gradient(
+    90deg,
+    var(--primary-green),
+    var(--primary-yellow),
+    var(--primary-orange)
+  ) !important;
+}
+
+.today-match-card::after {
+  content: "" !important;
+  position: absolute !important;
+  right: -34px !important;
+  bottom: -34px !important;
+  width: 120px !important;
+  height: 120px !important;
+  border: 1px solid rgba(255, 223, 0, 0.12) !important;
+  border-radius: 999px !important;
+  box-shadow: inset 0 0 0 12px rgba(255, 255, 255, 0.015) !important;
+  pointer-events: none !important;
+}
+
+.today-match-card > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.today-match-card__header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.today-match-card__game {
+  display: grid !important;
+  grid-template-columns: minmax(80px, 1fr) auto minmax(80px, 1fr) !important;
+  align-items: center !important;
+  gap: 10px !important;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  padding: 16px 0 !important;
+}
+
+.today-match-card__center {
+  display: grid !important;
+  justify-items: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.today-match-card__score {
+  color: var(--primary-yellow) !important;
+  font-size: 0.95rem !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.today-match-card__footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.today-match-card__footer span {
+  color: var(--text-muted) !important;
+  font-size: 0.78rem !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+}
+
+.today-match-card .match-team {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.today-match-card .match-team__flag {
+  width: 54px !important;
+  height: 40px !important;
+  border-radius: 14px !important;
+}
+
+.today-match-card .match-team strong {
+  color: #ffffff !important;
+  font-size: 0.8rem !important;
+  font-weight: 900 !important;
+}
+
+.today-match-card .match-team span:last-child {
+  display: -webkit-box !important;
+  max-width: 120px !important;
+  min-height: 2.3em !important;
+  overflow: hidden !important;
+
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+
+  white-space: normal !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+.today-match-card .match-versus {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+/* Card vazio no mesmo padrão */
+.today-empty {
+  display: grid !important;
+  gap: 6px !important;
+
+  border: 1px dashed rgba(255, 223, 0, 0.26) !important;
+  border-radius: 22px !important;
+
+  background:
+    radial-gradient(circle at top right, rgba(255, 223, 0, 0.08), transparent 34%),
+    rgba(10, 22, 50, 0.78) !important;
+
+  padding: 22px !important;
+}
+
+.today-empty strong {
+  color: var(--primary-yellow) !important;
+  font-size: 1rem !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+}
+
+.today-empty span {
+  color: var(--text-secondary) !important;
+  font-size: 0.88rem !important;
+  font-weight: 800 !important;
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  .today-match-card {
+    border-radius: 20px !important;
+    padding: 15px !important;
+    gap: 14px !important;
+  }
+
+  .today-match-card__header {
+    align-items: flex-start !important;
+  }
+
+  .today-match-card__game {
+    grid-template-columns: minmax(62px, 1fr) 34px minmax(62px, 1fr) !important;
+    gap: 8px !important;
+    padding: 14px 0 !important;
+  }
+
+  .today-match-card .match-team__flag {
+    width: 48px !important;
+    height: 36px !important;
+    border-radius: 12px !important;
+  }
+
+  .today-match-card .match-team strong {
+    font-size: 0.76rem !important;
+  }
+
+  .today-match-card .match-team span:last-child {
+    max-width: 82px !important;
+    font-size: 0.64rem !important;
+    line-height: 1.14 !important;
+  }
+
+  .today-match-card__score {
+    font-size: 0.78rem !important;
+  }
+
+  .today-match-card .match-versus {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .today-match-card__footer {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+  }
+}
