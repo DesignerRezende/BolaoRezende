@@ -570,6 +570,8 @@ function openPredictionModal() {
     return;
   }
 
+  closeFloatingPanels();
+
   state.predictionStep = 1;
   state.selectedChampion = null;
   state.selectedTopScorer = null;
@@ -579,6 +581,7 @@ function openPredictionModal() {
   predictionModal.hidden = false;
   predictionModal.style.display = "";
   document.body.classList.add("modal-open");
+  document.body.classList.add("prediction-modal-open");
 
   renderPredictionStep();
 }
@@ -589,6 +592,7 @@ function closePredictionModal() {
   predictionModal.hidden = true;
   predictionModal.style.display = "none";
   document.body.classList.remove("modal-open");
+  document.body.classList.remove("prediction-modal-open");
 }
 
 function renderPredictionStep() {

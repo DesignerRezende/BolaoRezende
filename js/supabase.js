@@ -121,6 +121,30 @@ async function getParticipantPrediction(participantId) {
   return data || null;
 }
 
+async function listParticipantPredictions() {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("participant_predictions")
+    .select("*");
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function getCupFinalResults() {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("cup_final_results")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
 async function saveParticipantPrediction(payload) {
   const client = getSupabaseClient();
 
@@ -173,6 +197,32 @@ function calculatePoints(guess, match) {
   return realResult === guessResult ? 3 : 0;
 }
 
+function calculatePredictionBonus(prediction, finalResults) {
+  if (!prediction || !finalResults || !finalResults.is_finalized) {
+    return {
+      points: 0,
+      championHit: false,
+      topScorerHit: false
+    };
+  }
+
+  const championHit =
+    finalResults.champion_team_id &&
+    prediction.champion_team_id &&
+    String(finalResults.champion_team_id) === String(prediction.champion_team_id);
+
+  const topScorerHit =
+    finalResults.top_scorer_player_id &&
+    prediction.top_scorer_player_id &&
+    String(finalResults.top_scorer_player_id) === String(prediction.top_scorer_player_id);
+
+  return {
+    points: (championHit ? 10 : 0) + (topScorerHit ? 7 : 0),
+    championHit,
+    topScorerHit
+  };
+}
+
 async function listAllGuesses() {
   const client = getSupabaseClient();
 
@@ -217,23 +267,33 @@ async function getGuessCounts() {
 }
 
 async function listRanking() {
-  const [participants, matches, guesses] = await Promise.all([
+  const [participants, matches, guesses, predictions, finalResults] = await Promise.all([
     listParticipants(),
     listMatches(),
-    listAllGuesses()
+    listAllGuesses(),
+    listParticipantPredictions(),
+    getCupFinalResults()
   ]);
 
   const matchById = new Map(matches.map((match) => [match.id, match]));
   const participantById = new Map(participants.map((participant) => [participant.id, participant]));
+  const predictionByParticipantId = new Map(
+    predictions.map((prediction) => [prediction.participant_id, prediction])
+  );
+
   const rankingMap = new Map();
 
   participants.forEach((participant) => {
     rankingMap.set(participant.id, {
       participant,
       points: 0,
+      gamePoints: 0,
+      bonusPoints: 0,
       guesses: 0,
       exactScores: 0,
-      resultHits: 0
+      resultHits: 0,
+      championHit: false,
+      topScorerHit: false
     });
   });
 
@@ -251,6 +311,7 @@ async function listRanking() {
 
     const row = rankingMap.get(participant.id);
     row.points += points;
+    row.gamePoints += points;
     row.guesses += 1;
 
     if (match.status === "encerrado" && match.home_score !== null && match.away_score !== null) {
@@ -269,9 +330,20 @@ async function listRanking() {
     }
   }
 
+  for (const row of rankingMap.values()) {
+    const prediction = predictionByParticipantId.get(row.participant.id);
+    const bonus = calculatePredictionBonus(prediction, finalResults);
+
+    row.points += bonus.points;
+    row.bonusPoints = bonus.points;
+    row.championHit = bonus.championHit;
+    row.topScorerHit = bonus.topScorerHit;
+  }
+
   return [...rankingMap.values()]
     .sort((a, b) =>
       b.points - a.points ||
+      b.gamePoints - a.gamePoints ||
       b.exactScores - a.exactScores ||
       b.resultHits - a.resultHits ||
       b.guesses - a.guesses ||
@@ -283,8 +355,12 @@ async function listRanking() {
       name: row.participant.name,
       store_sector: row.participant.store_sector,
       points: row.points,
+      gamePoints: row.gamePoints,
+      bonusPoints: row.bonusPoints,
       guesses: row.guesses,
       exactScores: row.exactScores,
-      resultHits: row.resultHits
+      resultHits: row.resultHits,
+      championHit: row.championHit,
+      topScorerHit: row.topScorerHit
     }));
 }
