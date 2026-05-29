@@ -53,6 +53,12 @@ function bindAdminEvents() {
 
   document.querySelector("#admin-refresh-employees")?.addEventListener("click", loadAdminEmployees);
   document.querySelector("#admin-create-employee-form")?.addEventListener("submit", handleCreateEmployee);
+  document.querySelector("#admin-employees-search-form")?.addEventListener("submit", handleEmployeesSearch);
+  document.querySelector("#admin-clear-employees-search")?.addEventListener("click", handleClearEmployeesSearch);
+
+  document.querySelector('#admin-create-employee-form [name="cpf_digits"]')?.addEventListener("input", (event) => {
+    event.target.value = formatCPF(event.target.value);
+  });
 
   ["#guess-filter-match", "#guess-filter-participant", "#guess-filter-store"].forEach((selector) => {
     document.querySelector(selector)?.addEventListener("input", renderAdminGuesses);
@@ -61,11 +67,6 @@ function bindAdminEvents() {
 
   ["#prediction-filter-champion", "#prediction-filter-scorer"].forEach((selector) => {
     document.querySelector(selector)?.addEventListener("input", renderAdminPredictions);
-  });
-
-  ["#employee-filter-search", "#employee-filter-status", "#employee-filter-store"].forEach((selector) => {
-    document.querySelector(selector)?.addEventListener("input", renderAdminEmployees);
-    document.querySelector(selector)?.addEventListener("change", renderAdminEmployees);
   });
 }
 
@@ -121,8 +122,7 @@ async function showAdminPanel() {
       loadAdminMatches(),
       loadAdminRanking(),
       loadAdminGuesses(),
-      loadAdminPredictions(),
-      loadAdminEmployees()
+      loadAdminPredictions()
     ]);
   } catch (error) {
     console.error(error);
@@ -355,13 +355,56 @@ async function adminDeleteParticipant(participantId) {
    COLABORADORES AUTORIZADOS
 ========================================================= */
 
-async function adminListEmployees() {
+function getEmployeeFilters() {
+  return {
+    search: String(document.querySelector("#employee-filter-search")?.value || "").trim(),
+    status: String(document.querySelector("#employee-filter-status")?.value || "").trim(),
+    store: String(document.querySelector("#employee-filter-store")?.value || "").trim()
+  };
+}
+
+async function adminListEmployees(filters = {}) {
   const client = getSupabaseClient();
 
-  const { data, error } = await client
+  let query = client
     .from("authorized_employees")
     .select("*")
     .order("name", { ascending: true });
+
+  const search = String(filters.search || "").trim();
+  const store = String(filters.store || "").trim();
+  const status = String(filters.status || "").trim();
+
+  if (search) {
+    const safeSearch = escapeSupabaseLike(search);
+    const cpfSearch = cleanCpfDigits(search);
+
+    const searchParts = [
+      `name.ilike.%${safeSearch}%`,
+      `store_sector.ilike.%${safeSearch}%`,
+      `password_text.ilike.%${safeSearch}%`
+    ];
+
+    if (cpfSearch) {
+      searchParts.push(`cpf_digits.ilike.%${cpfSearch}%`);
+    }
+
+    query = query.or(searchParts.join(","));
+  }
+
+  if (store) {
+    query = query.ilike("store_sector", `%${escapeSupabaseLike(store)}%`);
+  }
+
+  if (status === "active") {
+    query = query.eq("active", true);
+  }
+
+  if (status === "inactive") {
+    query = query.eq("active", false);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw withRlsHint(error, "select", "authorized_employees");
 
@@ -470,15 +513,38 @@ function buildEmployeePayloadFromRow(row) {
   };
 }
 
+async function handleEmployeesSearch(event) {
+  if (event) {
+    event.preventDefault();
+  }
+
+  await loadAdminEmployees();
+}
+
+async function handleClearEmployeesSearch() {
+  const searchInput = document.querySelector("#employee-filter-search");
+  const statusInput = document.querySelector("#employee-filter-status");
+  const storeInput = document.querySelector("#employee-filter-store");
+
+  if (searchInput) searchInput.value = "";
+  if (statusInput) statusInput.value = "";
+  if (storeInput) storeInput.value = "";
+
+  await loadAdminEmployees();
+}
+
 async function loadAdminEmployees() {
   const body = document.querySelector("#admin-employees-body");
 
   if (body) {
-    body.innerHTML = '<tr><td colspan="7">Carregando colaboradores...</td></tr>';
+    body.innerHTML = '<tr><td colspan="7">Buscando colaboradores...</td></tr>';
   }
 
   try {
-    adminState.employees = await adminListEmployees();
+    const filters = getEmployeeFilters();
+
+    adminState.employees = await adminListEmployees(filters);
+
     renderAdminEmployees();
   } catch (error) {
     if (body) {
@@ -494,25 +560,7 @@ function renderAdminEmployees() {
   const body = document.querySelector("#admin-employees-body");
   if (!body) return;
 
-  const searchFilter = normalizeText(document.querySelector("#employee-filter-search")?.value || "");
-  const statusFilter = document.querySelector("#employee-filter-status")?.value || "";
-  const storeFilter = normalizeText(document.querySelector("#employee-filter-store")?.value || "");
-
-  const employees = adminState.employees.filter((employee) => {
-    const combined = normalizeText([
-      employee.name,
-      employee.cpf_digits,
-      employee.store_sector,
-      employee.password_text
-    ].join(" "));
-
-    if (searchFilter && !combined.includes(searchFilter)) return false;
-    if (storeFilter && !normalizeText(employee.store_sector).includes(storeFilter)) return false;
-    if (statusFilter === "active" && !employee.active) return false;
-    if (statusFilter === "inactive" && employee.active) return false;
-
-    return true;
-  });
+  const employees = adminState.employees || [];
 
   if (!employees.length) {
     body.innerHTML = '<tr><td colspan="7">Nenhum colaborador encontrado.</td></tr>';
@@ -1048,6 +1096,10 @@ function renderAdminGuesses() {
   }).join("");
 }
 
+/* =========================================================
+   CAMPEAO E ARTILHEIRO
+========================================================= */
+
 async function loadAdminPredictions() {
   const body = document.querySelector("#admin-predictions-body");
   if (body) body.innerHTML = '<tr><td colspan="6">Carregando escolhas...</td></tr>';
@@ -1195,8 +1247,7 @@ async function refreshAdminData() {
   await Promise.all([
     loadAdminRanking(),
     loadAdminGuesses(),
-    loadAdminPredictions(),
-    loadAdminEmployees()
+    loadAdminPredictions()
   ]);
 }
 

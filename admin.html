@@ -285,7 +285,7 @@
               <button id="admin-refresh-employees" class="button-secondary" type="button">Atualizar</button>
             </div>
 
-            <div class="admin-filters">
+            <form id="admin-employees-search-form" class="admin-filters">
               <label>
                 Buscar
                 <input id="employee-filter-search" type="search" placeholder="Nome, CPF ou loja">
@@ -302,9 +302,14 @@
 
               <label>
                 Loja
-                <input id="employee-filter-store" type="search" placeholder="Ex: Matriz">
+                <input id="employee-filter-store" type="search" placeholder="Ex: Matriz, Conselheiro, CD">
               </label>
-            </div>
+
+              <div class="admin-row-actions" style="align-self: end;">
+                <button id="admin-search-employees" type="submit">Buscar</button>
+                <button id="admin-clear-employees-search" class="button-secondary" type="button">Limpar</button>
+              </div>
+            </form>
 
             <div class="table-wrap">
               <table>
@@ -320,7 +325,7 @@
                   </tr>
                 </thead>
                 <tbody id="admin-employees-body">
-                  <tr><td colspan="7">Carregando colaboradores...</td></tr>
+                  <tr><td colspan="7">Clique em buscar para carregar os colaboradores.</td></tr>
                 </tbody>
               </table>
             </div>
