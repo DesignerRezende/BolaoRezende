@@ -11,11 +11,6 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    /* =========================================================
-       ADMIN FULL WIDTH REAL
-       Força o painel admin a usar a largura inteira da tela
-    ========================================================= */
-
     html,
     body.admin-page {
       width: 100%;
@@ -88,11 +83,6 @@
       max-width: none !important;
       box-sizing: border-box !important;
     }
-
-    /* =========================================================
-       ABA COLABORADORES
-       Tabela ocupa a tela inteira no desktop
-    ========================================================= */
 
     body.admin-page #admin-tab-employees .admin-grid {
       display: grid !important;
@@ -250,10 +240,6 @@
       min-height: 48px !important;
       white-space: nowrap !important;
     }
-
-    /* =========================================================
-       OUTRAS ABAS DO ADMIN TAMBÉM PODEM USAR A TELA TODA
-    ========================================================= */
 
     body.admin-page #admin-tab-matches .admin-grid {
       grid-template-columns: minmax(0, 1fr) 420px !important;
@@ -558,6 +544,53 @@
 
       <section id="admin-tab-employees" class="admin-section">
         <div class="admin-grid">
+          <aside class="panel">
+            <div class="section-title">
+              <p class="eyebrow">Novo acesso</p>
+              <h2>Cadastrar colaborador</h2>
+            </div>
+
+            <form id="admin-create-employee-form" class="form">
+              <label>
+                Nome
+                <input name="name" type="text" required placeholder="Nome completo">
+              </label>
+
+              <label>
+                CPF
+                <input name="cpf_digits" type="text" required placeholder="000.000.000-00" maxlength="14">
+              </label>
+
+              <label>
+                Loja
+                <input name="store_sector" type="text" required placeholder="Matriz">
+              </label>
+
+              <label>
+                Senha inicial
+                <input name="password_text" type="text" required value="1234">
+              </label>
+
+              <label>
+                Status
+                <select name="active">
+                  <option value="true">Ativo</option>
+                  <option value="false">Inativo</option>
+                </select>
+              </label>
+
+              <label>
+                Obrigar troca de senha?
+                <select name="must_change_password">
+                  <option value="true">Sim</option>
+                  <option value="false">Não</option>
+                </select>
+              </label>
+
+              <button type="submit">Cadastrar colaborador</button>
+            </form>
+          </aside>
+
           <article class="panel">
             <div class="section-title row-title">
               <div>
@@ -613,53 +646,6 @@
               </table>
             </div>
           </article>
-
-          <aside class="panel">
-            <div class="section-title">
-              <p class="eyebrow">Novo acesso</p>
-              <h2>Cadastrar colaborador</h2>
-            </div>
-
-            <form id="admin-create-employee-form" class="form">
-              <label>
-                Nome
-                <input name="name" type="text" required placeholder="Nome completo">
-              </label>
-
-              <label>
-                CPF
-                <input name="cpf_digits" type="text" required placeholder="000.000.000-00" maxlength="14">
-              </label>
-
-              <label>
-                Loja
-                <input name="store_sector" type="text" required placeholder="Matriz">
-              </label>
-
-              <label>
-                Senha inicial
-                <input name="password_text" type="text" required value="1234">
-              </label>
-
-              <label>
-                Status
-                <select name="active">
-                  <option value="true">Ativo</option>
-                  <option value="false">Inativo</option>
-                </select>
-              </label>
-
-              <label>
-                Obrigar troca de senha?
-                <select name="must_change_password">
-                  <option value="true">Sim</option>
-                  <option value="false">Não</option>
-                </select>
-              </label>
-
-              <button type="submit">Cadastrar colaborador</button>
-            </form>
-          </aside>
         </div>
       </section>
 
