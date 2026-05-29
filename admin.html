@@ -11,31 +11,314 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    .admin-table-input {
+    /* =========================================================
+       ADMIN FULL WIDTH REAL
+       Força o painel admin a usar a largura inteira da tela
+    ========================================================= */
+
+    html,
+    body.admin-page {
       width: 100%;
-      min-width: 130px;
-      min-height: 42px;
-      padding: 10px 12px;
-      font-size: 0.78rem;
+      min-width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    body.admin-page #admin-app {
+      width: 100vw !important;
+      max-width: none !important;
+      min-width: 100vw !important;
+      margin-left: calc(50% - 50vw) !important;
+      margin-right: calc(50% - 50vw) !important;
+      padding: 0 !important;
+    }
+
+    body.admin-page .admin-topbar {
+      width: 100vw !important;
+      max-width: none !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+    }
+
+    body.admin-page .admin-topbar__inner {
+      width: 100vw !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding-left: 28px !important;
+      padding-right: 28px !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page .admin-layout {
+      width: 100vw !important;
+      max-width: none !important;
+      min-width: 100vw !important;
+      margin: 0 !important;
+      padding: 24px 28px 40px !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page .admin-tabs {
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 0 24px 0 !important;
+      padding: 0 !important;
+      justify-content: flex-start !important;
+      flex-wrap: wrap !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page .admin-section {
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page .panel {
+      width: 100% !important;
+      max-width: none !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page .admin-grid {
+      width: 100% !important;
+      max-width: none !important;
+      box-sizing: border-box !important;
+    }
+
+    /* =========================================================
+       ABA COLABORADORES
+       Tabela ocupa a tela inteira no desktop
+    ========================================================= */
+
+    body.admin-page #admin-tab-employees .admin-grid {
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+      gap: 24px !important;
+      width: 100% !important;
+      max-width: none !important;
+    }
+
+    body.admin-page #admin-tab-employees .panel {
+      width: 100% !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      overflow: visible !important;
+    }
+
+    body.admin-page #admin-tab-employees .table-wrap {
+      width: 100% !important;
+      max-width: none !important;
+      overflow-x: visible !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page #admin-tab-employees table {
+      width: 100% !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      table-layout: fixed !important;
+    }
+
+    body.admin-page #admin-tab-employees th,
+    body.admin-page #admin-tab-employees td {
+      padding-left: 9px !important;
+      padding-right: 9px !important;
+      vertical-align: middle !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page #admin-tab-employees th:nth-child(1),
+    body.admin-page #admin-tab-employees td:nth-child(1) {
+      width: 18% !important;
+    }
+
+    body.admin-page #admin-tab-employees th:nth-child(2),
+    body.admin-page #admin-tab-employees td:nth-child(2) {
+      width: 13% !important;
+    }
+
+    body.admin-page #admin-tab-employees th:nth-child(3),
+    body.admin-page #admin-tab-employees td:nth-child(3) {
+      width: 12% !important;
+    }
+
+    body.admin-page #admin-tab-employees th:nth-child(4),
+    body.admin-page #admin-tab-employees td:nth-child(4) {
+      width: 10% !important;
+    }
+
+    body.admin-page #admin-tab-employees th:nth-child(5),
+    body.admin-page #admin-tab-employees td:nth-child(5) {
+      width: 10% !important;
+    }
+
+    body.admin-page #admin-tab-employees th:nth-child(6),
+    body.admin-page #admin-tab-employees td:nth-child(6) {
+      width: 11% !important;
+    }
+
+    body.admin-page #admin-tab-employees th:nth-child(7),
+    body.admin-page #admin-tab-employees td:nth-child(7) {
+      width: 26% !important;
+    }
+
+    .admin-table-input {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      min-height: 40px !important;
+      padding: 9px 10px !important;
+      font-size: 0.72rem !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      box-sizing: border-box !important;
     }
 
     .admin-row-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      min-width: 360px;
+      display: grid !important;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      gap: 7px !important;
+      min-width: 0 !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
     }
 
     .admin-row-actions button {
-      min-height: 36px;
-      padding: 8px 10px;
-      font-size: 0.68rem;
-      border-radius: 10px;
-      white-space: nowrap;
+      width: 100% !important;
+      min-width: 0 !important;
+      min-height: 36px !important;
+      padding: 7px 6px !important;
+      font-size: 0.58rem !important;
+      border-radius: 10px !important;
+      white-space: normal !important;
+      line-height: 1.05 !important;
+      text-align: center !important;
+      box-sizing: border-box !important;
     }
 
-    #admin-tab-employees table {
-      min-width: 1180px;
+    body.admin-page #admin-employees-search-form.admin-filters {
+      display: grid !important;
+      grid-template-columns: minmax(240px, 1fr) 220px minmax(240px, 1fr) auto !important;
+      align-items: end !important;
+      gap: 14px !important;
+      width: 100% !important;
+      max-width: none !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page #admin-employees-search-form .admin-row-actions {
+      display: flex !important;
+      width: auto !important;
+      min-width: 0 !important;
+      gap: 8px !important;
+    }
+
+    body.admin-page #admin-employees-search-form .admin-row-actions button {
+      width: auto !important;
+      min-width: 82px !important;
+      white-space: nowrap !important;
+      font-size: 0.68rem !important;
+    }
+
+    body.admin-page #admin-create-employee-form.form {
+      display: grid !important;
+      grid-template-columns: minmax(240px, 2fr) 160px 180px 140px 150px 190px auto !important;
+      gap: 14px !important;
+      align-items: end !important;
+      width: 100% !important;
+      max-width: none !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page #admin-create-employee-form.form label {
+      margin: 0 !important;
+      min-width: 0 !important;
+    }
+
+    body.admin-page #admin-create-employee-form.form input,
+    body.admin-page #admin-create-employee-form.form select {
+      width: 100% !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+    }
+
+    body.admin-page #admin-create-employee-form.form button {
+      min-height: 48px !important;
+      white-space: nowrap !important;
+    }
+
+    /* =========================================================
+       OUTRAS ABAS DO ADMIN TAMBÉM PODEM USAR A TELA TODA
+    ========================================================= */
+
+    body.admin-page #admin-tab-matches .admin-grid {
+      grid-template-columns: minmax(0, 1fr) 420px !important;
+      width: 100% !important;
+      max-width: none !important;
+    }
+
+    body.admin-page #admin-tab-ranking .table-wrap,
+    body.admin-page #admin-tab-guesses .table-wrap,
+    body.admin-page #admin-tab-predictions .table-wrap {
+      width: 100% !important;
+      max-width: none !important;
+    }
+
+    body.admin-page #admin-tab-ranking table,
+    body.admin-page #admin-tab-guesses table,
+    body.admin-page #admin-tab-predictions table {
+      width: 100% !important;
+      max-width: none !important;
+    }
+
+    @media (max-width: 1300px) {
+      body.admin-page #admin-tab-employees .table-wrap {
+        overflow-x: auto !important;
+      }
+
+      body.admin-page #admin-tab-employees table {
+        min-width: 1180px !important;
+      }
+
+      body.admin-page #admin-create-employee-form.form {
+        grid-template-columns: 1fr 1fr !important;
+      }
+
+      body.admin-page #admin-tab-matches .admin-grid {
+        grid-template-columns: 1fr !important;
+      }
+    }
+
+    @media (max-width: 900px) {
+      body.admin-page .admin-layout {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+      }
+
+      body.admin-page .admin-topbar__inner {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+      }
+
+      body.admin-page #admin-employees-search-form.admin-filters {
+        grid-template-columns: 1fr !important;
+      }
+
+      body.admin-page #admin-create-employee-form.form {
+        grid-template-columns: 1fr !important;
+      }
+
+      body.admin-page #admin-tab-employees .table-wrap {
+        overflow-x: auto !important;
+      }
+
+      body.admin-page #admin-tab-employees table {
+        min-width: 1080px !important;
+      }
     }
   </style>
 </head>
