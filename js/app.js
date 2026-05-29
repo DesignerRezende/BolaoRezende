@@ -13,7 +13,7 @@ const state = {
   selectedChampionTeamId: null,
   selectedTopScorerPlayerId: null,
   matchFilter: "todos",
-  openPhase: "Grupo A"
+  openPhase: ""
 };
 
 const PHASE_SECTIONS = [
@@ -86,6 +86,7 @@ document.querySelectorAll("[data-match-filter]").forEach((button) => {
       item.classList.toggle("is-active", item === button);
     });
 
+    state.openPhase = "";
     renderMatches();
   });
 });
@@ -307,6 +308,7 @@ async function loadCupPredictionData() {
 
 async function loadDashboard() {
   try {
+    state.openPhase = "";
     state.matches = await listMatches();
     state.guessCounts = await getGuessCounts();
     state.guesses = await listParticipantGuesses(state.participant?.id);
@@ -386,7 +388,7 @@ function renderLiveBox() {
   `;
 }
 
-function renderMatches() {
+function renderMatches(options = {}) {
   if (!matchesList) return;
 
   if (!state.matches.length) {
@@ -404,7 +406,10 @@ function renderMatches() {
     const isLocked = isKnockout && phaseMatches.length === 0;
 
     return `
-      <section class="phase-accordion ${isOpen ? "is-open" : ""} ${isLocked ? "is-locked" : ""}">
+      <section
+        class="phase-accordion ${isOpen ? "is-open" : ""} ${isLocked ? "is-locked" : ""}"
+        data-phase-section="${escapeHtml(phaseName)}"
+      >
         <button
           type="button"
           class="phase-accordion__header"
@@ -448,14 +453,59 @@ function renderMatches() {
   document.querySelectorAll("[data-phase-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
       const phaseName = button.dataset.phaseToggle;
-      state.openPhase = state.openPhase === phaseName ? "" : phaseName;
-      renderMatches();
+      const willOpen = state.openPhase !== phaseName;
+
+      state.openPhase = willOpen ? phaseName : "";
+
+      renderMatches({
+        scrollToPhase: willOpen ? phaseName : null
+      });
     });
   });
 
   document.querySelectorAll(".guess-form").forEach((form) => {
     form.addEventListener("submit", handleGuessSubmit);
   });
+
+  if (options.scrollToPhase) {
+    scrollPhaseAccordionIntoView(options.scrollToPhase);
+  }
+}
+
+function scrollPhaseAccordionIntoView(phaseName) {
+  if (!phaseName) return;
+
+  window.requestAnimationFrame(() => {
+    const selector = `[data-phase-section="${cssEscape(phaseName)}"]`;
+    const accordion = document.querySelector(selector);
+    const header = accordion?.querySelector(".phase-accordion__header");
+
+    if (!accordion || !header) return;
+
+    const offset = getFixedTopOffset();
+    const currentTop = window.scrollY || document.documentElement.scrollTop || 0;
+    const headerTop = header.getBoundingClientRect().top + currentTop;
+    const targetTop = Math.max(headerTop - offset - 10, 0);
+
+    window.scrollTo({
+      top: targetTop,
+      behavior: "smooth"
+    });
+  });
+}
+
+function getFixedTopOffset() {
+  const topbar = document.querySelector(".topbar");
+  const topbarHeight = topbar ? Math.ceil(topbar.getBoundingClientRect().height) : 0;
+  return topbarHeight + 10;
+}
+
+function cssEscape(value) {
+  if (window.CSS && typeof window.CSS.escape === "function") {
+    return window.CSS.escape(String(value));
+  }
+
+  return String(value).replace(/"/g, '\\"');
 }
 
 function renderMatchCard(match) {
