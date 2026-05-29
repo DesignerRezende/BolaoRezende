@@ -3416,3 +3416,154 @@ body.prediction-modal-open {
   background: rgba(255, 255, 255, 0.92) !important;
   color: #00B050 !important;
 }
+/* =========================================================
+   POPUP CAMPEÃO / ARTILHEIRO
+   Botão Continuar no topo e cabeçalho público escondido
+========================================================= */
+
+/* Enquanto o popup estiver aberto, esconde o cabeçalho do site */
+body.prediction-modal-open #app-content .topbar,
+body.modal-open #app-content .topbar {
+  display: none !important;
+}
+
+/* Remove o espaço que o cabeçalho deixava no topo */
+body.prediction-modal-open #app-content,
+body.modal-open #app-content {
+  padding-top: 0 !important;
+}
+
+/* Popup ocupa a tela inteira com mais controle */
+body.prediction-modal-open .prediction-modal,
+body.modal-open .prediction-modal {
+  z-index: 6000 !important;
+}
+
+/* Reorganiza o popup para o botão ficar no topo */
+body.prediction-modal-open .prediction-modal__dialog,
+body.modal-open .prediction-modal__dialog {
+  display: flex !important;
+  flex-direction: column !important;
+
+  width: 100% !important;
+  max-width: none !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+
+  margin: 0 auto !important;
+  border-radius: 0 !important;
+
+  overflow: hidden !important;
+}
+
+/* Footer do modal vira barra superior */
+body.prediction-modal-open .prediction-modal__footer,
+body.modal-open .prediction-modal__footer {
+  order: 1 !important;
+
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+
+  display: grid !important;
+  grid-template-columns: auto 1fr !important;
+  gap: 10px !important;
+
+  padding: 12px 14px !important;
+
+  background:
+    linear-gradient(180deg, rgba(2, 5, 12, 0.98), rgba(2, 5, 12, 0.86)) !important;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Linha verde/amarela/azul no topo da barra do botão */
+body.prediction-modal-open .prediction-modal__footer::before,
+body.modal-open .prediction-modal__footer::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--primary-green) 0%,
+    var(--primary-yellow) 50%,
+    var(--brand-blue) 100%
+  );
+}
+
+/* Cabeçalho interno do popup vem depois da barra de botão */
+body.prediction-modal-open .prediction-modal__header,
+body.modal-open .prediction-modal__header {
+  order: 2 !important;
+  padding: 18px 16px 10px !important;
+}
+
+/* Lista de seleções/jogadores ocupa o restante */
+body.prediction-modal-open .prediction-grid,
+body.modal-open .prediction-grid {
+  order: 3 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  padding-bottom: 22px !important;
+}
+
+/* Botões da barra superior */
+body.prediction-modal-open .prediction-modal__footer button,
+body.modal-open .prediction-modal__footer button {
+  min-height: 46px !important;
+  border-radius: 999px !important;
+}
+
+/* Botão voltar menor */
+body.prediction-modal-open #prediction-back-button,
+body.modal-open #prediction-back-button {
+  min-width: 94px !important;
+  padding: 10px 14px !important;
+}
+
+/* Botão continuar/confirmar ocupa o espaço principal */
+body.prediction-modal-open #prediction-next-button,
+body.modal-open #prediction-next-button {
+  width: 100% !important;
+  padding: 10px 18px !important;
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  body.prediction-modal-open .prediction-modal__footer,
+  body.modal-open .prediction-modal__footer {
+    padding: 11px 12px calc(11px + env(safe-area-inset-top)) !important;
+    gap: 8px !important;
+  }
+
+  body.prediction-modal-open .prediction-modal__header,
+  body.modal-open .prediction-modal__header {
+    padding: 16px 14px 8px !important;
+  }
+
+  body.prediction-modal-open .prediction-modal__header h2,
+  body.modal-open .prediction-modal__header h2 {
+    font-size: clamp(1.35rem, 7vw, 2rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  body.prediction-modal-open #prediction-back-button,
+  body.modal-open #prediction-back-button {
+    min-width: 82px !important;
+    font-size: 0.68rem !important;
+  }
+
+  body.prediction-modal-open #prediction-next-button,
+  body.modal-open #prediction-next-button {
+    font-size: 0.72rem !important;
+  }
+}

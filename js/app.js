@@ -65,6 +65,7 @@ const todayGamesPanel = document.querySelector("#today-games-panel");
 const todayGamesList = document.querySelector("#today-games-list");
 const bottomNavToday = document.querySelector("#bottom-nav-today");
 const bottomNavRanking = document.querySelector("#bottom-nav-ranking");
+const bottomNav = document.querySelector(".bottom-nav");
 
 const GUESS_CLOSE_MINUTES_BEFORE_MATCH = 20;
 let countdownTimer = null;
@@ -123,6 +124,29 @@ document.addEventListener("keydown", (event) => {
     closeFloatingPanels();
   }
 });
+
+function hidePublicBottomNav() {
+  if (bottomNav) {
+    bottomNav.style.display = "none";
+  }
+
+  document.body.classList.add("public-bottom-nav-hidden");
+}
+
+function showPublicBottomNav() {
+  const predictionIsOpen = predictionModal && !predictionModal.hidden;
+  const floatingPanelIsOpen = document.body.classList.contains("floating-panel-open");
+
+  if (predictionIsOpen || floatingPanelIsOpen) {
+    return;
+  }
+
+  if (bottomNav) {
+    bottomNav.style.display = "";
+  }
+
+  document.body.classList.remove("public-bottom-nav-hidden");
+}
 
 async function initApp() {
   console.log("initApp iniciou");
@@ -571,6 +595,7 @@ function openPredictionModal() {
   }
 
   closeFloatingPanels();
+  hidePublicBottomNav();
 
   state.predictionStep = 1;
   state.selectedChampion = null;
@@ -593,6 +618,8 @@ function closePredictionModal() {
   predictionModal.style.display = "none";
   document.body.classList.remove("modal-open");
   document.body.classList.remove("prediction-modal-open");
+
+  showPublicBottomNav();
 }
 
 function renderPredictionStep() {
@@ -957,6 +984,8 @@ function openFloatingPanel(panel) {
   panel.hidden = false;
   panel.classList.add("is-open");
   document.body.classList.add("floating-panel-open");
+
+  hidePublicBottomNav();
 }
 
 function closeFloatingPanels() {
@@ -966,6 +995,8 @@ function closeFloatingPanels() {
   });
 
   document.body.classList.remove("floating-panel-open");
+
+  showPublicBottomNav();
 }
 
 function renderTodayGames() {
