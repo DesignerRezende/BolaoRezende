@@ -3567,3 +3567,18 @@ body.modal-open #prediction-next-button {
     font-size: 0.72rem !important;
   }
 }
+/* =========================================================
+   AJUSTE FINAL · JOGOS DO DIA EM 2 LINHAS
+========================================================= */
+
+#app-content #bottom-nav-today strong,
+#bottom-nav-today strong {
+  display: block !important;
+  color: #050505 !important;
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  line-height: 1.02 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  white-space: normal !important;
+}
