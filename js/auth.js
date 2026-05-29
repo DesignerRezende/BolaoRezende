@@ -212,22 +212,37 @@ function ensurePasswordField() {
   }
 }
 
+function bindPasswordChangeButton(button) {
+  if (!button) return;
+
+  button.id = "change-password-button";
+  button.type = "button";
+  button.classList.add("change-password-button");
+
+  button.onclick = (event) => {
+    event.preventDefault();
+    openPasswordWindow();
+  };
+}
+
 function ensurePasswordChangeButton() {
   const logoutButton = document.querySelector("#logout-button");
+  let button = document.querySelector("#change-password-button");
 
-  if (document.querySelector("#change-password-button")) {
+  if (button) {
+    bindPasswordChangeButton(button);
     return;
   }
 
-  const button = document.createElement("button");
+  button = document.createElement("button");
   button.id = "change-password-button";
   button.type = "button";
-  button.className = "logout-button change-password-button";
+  button.className = "change-password-button";
   button.textContent = "Alterar senha";
   button.hidden = true;
   button.style.display = "none";
 
-  button.addEventListener("click", openPasswordWindow);
+  bindPasswordChangeButton(button);
 
   if (logoutButton && logoutButton.parentElement) {
     logoutButton.insertAdjacentElement("beforebegin", button);
@@ -582,6 +597,7 @@ function showAppContent() {
   }
 
   if (changePasswordButton) {
+    bindPasswordChangeButton(changePasswordButton);
     changePasswordButton.hidden = false;
     changePasswordButton.style.display = "";
   }
@@ -714,6 +730,7 @@ function setupAuthListeners() {
   const cpfForm = document.querySelector("#cpf-form");
   const loginButton = document.querySelector("#login-button");
   const logoutButton = document.querySelector("#logout-button");
+  const changePasswordButton = document.querySelector("#change-password-button");
 
   if (cpfInput) {
     cpfInput.addEventListener("input", (event) => {
@@ -727,6 +744,10 @@ function setupAuthListeners() {
 
   if (loginButton) {
     loginButton.type = "submit";
+  }
+
+  if (changePasswordButton) {
+    bindPasswordChangeButton(changePasswordButton);
   }
 
   if (logoutButton) {
