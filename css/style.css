@@ -3254,3 +3254,165 @@ body.floating-panel-open .bottom-nav {
     font-size: 12px !important;
   }
 }
+/* =========================================================
+   AJUSTES PÚBLICOS ISOLADOS
+   Não afeta o painel admin
+========================================================= */
+
+/* Esconde o rodapé quando o modal de campeão/artilheiro estiver aberto */
+body.modal-open #app-content .bottom-nav,
+body.prediction-modal-open #app-content .bottom-nav,
+body:has(#prediction-modal:not([hidden])) #app-content .bottom-nav {
+  display: none !important;
+}
+
+/* Remove espaço do rodapé quando modal estiver aberto */
+body.modal-open,
+body.prediction-modal-open {
+  padding-bottom: 0 !important;
+}
+
+/* Botão Grupo WPP em duas linhas, mantendo o botão no rodapé */
+#app-content .bottom-nav__button--whatsapp strong {
+  color: #ffffff !important;
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  line-height: 1.02 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  white-space: normal !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+#app-content .bottom-nav__button--whatsapp .bottom-nav__icon--whatsapp {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #00B050 !important;
+}
+
+/* Alterar senha no mesmo formato do Sair, mas mantendo amarelo */
+#app-content #change-password-button,
+#app-content #change-password-button.change-password-button,
+#app-content .change-password-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: auto !important;
+  min-width: 68px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+
+  padding: 8px 12px !important;
+
+  border: 1px solid rgba(255, 223, 0, 0.34) !important;
+  border-radius: 999px !important;
+
+  background: linear-gradient(135deg, var(--primary-yellow) 0%, var(--primary-orange) 100%) !important;
+  color: #050505 !important;
+
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+
+  box-shadow:
+    0 8px 18px rgba(255, 140, 0, 0.22),
+    0 0 18px rgba(255, 223, 0, 0.12) !important;
+}
+
+/* Mantém sair no formato correto */
+#app-content #logout-button,
+#app-content .button-logout {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: auto !important;
+  min-width: 58px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+
+  padding: 8px 12px !important;
+
+  border: 1px solid rgba(255, 223, 0, 0.24) !important;
+  border-radius: 999px !important;
+
+  background: rgba(10, 22, 50, 0.72) !important;
+  color: var(--primary-yellow) !important;
+
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+
+  box-shadow: none !important;
+}
+
+/* Mobile */
+@media (max-width: 680px) {
+  #app-content #change-password-button,
+  #app-content #change-password-button.change-password-button,
+  #app-content .change-password-button {
+    min-width: 68px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 7px 10px !important;
+    font-size: 0.58rem !important;
+    line-height: 1.02 !important;
+  }
+
+  #app-content #logout-button,
+  #app-content .button-logout {
+    min-width: 54px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 7px 10px !important;
+    font-size: 0.58rem !important;
+    line-height: 1.02 !important;
+  }
+
+  #app-content .topbar-actions {
+    gap: 6px !important;
+  }
+
+  #app-content .bottom-nav__button--whatsapp strong {
+    font-size: 0.58rem !important;
+    line-height: 1.02 !important;
+  }
+}
+/* =========================================================
+   AJUSTE FINAL · BOTÃO GRUPO WPP
+========================================================= */
+
+#app-content .bottom-nav__button--whatsapp,
+.bottom-nav__button--whatsapp {
+  background: linear-gradient(135deg, #00B050 0%, #057A38 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(135, 255, 181, 0.45) !important;
+  box-shadow:
+    0 10px 24px rgba(0, 176, 80, 0.30),
+    0 0 22px rgba(0, 176, 80, 0.18) !important;
+  text-decoration: none !important;
+}
+
+#app-content .bottom-nav__button--whatsapp strong,
+.bottom-nav__button--whatsapp strong {
+  color: #ffffff !important;
+  text-decoration: none !important;
+  border-bottom: 0 !important;
+  font-size: 0.62rem !important;
+  font-weight: 900 !important;
+  line-height: 1.02 !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  white-space: normal !important;
+}
+
+#app-content .bottom-nav__button--whatsapp .bottom-nav__icon--whatsapp,
+.bottom-nav__button--whatsapp .bottom-nav__icon--whatsapp {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #00B050 !important;
+}
