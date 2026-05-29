@@ -1,4 +1,4 @@
-const ADMIN_PASSWORD = "rezende2026";
+const ADMIN_PASSWORD = "rezende@2026!";
 const ADMIN_STORAGE_KEY = "bolao_rezende_admin";
 
 const adminState = {
