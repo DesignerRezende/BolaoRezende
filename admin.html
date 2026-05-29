@@ -10,6 +10,34 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 
+  <style>
+    .admin-table-input {
+      width: 100%;
+      min-width: 130px;
+      min-height: 42px;
+      padding: 10px 12px;
+      font-size: 0.78rem;
+    }
+
+    .admin-row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-width: 360px;
+    }
+
+    .admin-row-actions button {
+      min-height: 36px;
+      padding: 8px 10px;
+      font-size: 0.68rem;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    #admin-tab-employees table {
+      min-width: 1180px;
+    }
+  </style>
 </head>
 
 <body class="admin-page">
@@ -60,6 +88,7 @@
         <button class="admin-tab" type="button" data-admin-tab="ranking">Ranking</button>
         <button class="admin-tab" type="button" data-admin-tab="guesses">Palpites</button>
         <button class="admin-tab" type="button" data-admin-tab="predictions">Campeao e artilheiro</button>
+        <button class="admin-tab" type="button" data-admin-tab="employees">Colaboradores</button>
         <button class="admin-tab" type="button" data-admin-tab="cleanup">Limpeza de testes</button>
       </nav>
 
@@ -242,6 +271,108 @@
             </table>
           </div>
         </article>
+      </section>
+
+      <section id="admin-tab-employees" class="admin-section">
+        <div class="admin-grid">
+          <article class="panel">
+            <div class="section-title row-title">
+              <div>
+                <p class="eyebrow">Acesso autorizado</p>
+                <h2>Colaboradores</h2>
+              </div>
+
+              <button id="admin-refresh-employees" class="button-secondary" type="button">Atualizar</button>
+            </div>
+
+            <div class="admin-filters">
+              <label>
+                Buscar
+                <input id="employee-filter-search" type="search" placeholder="Nome, CPF ou loja">
+              </label>
+
+              <label>
+                Status
+                <select id="employee-filter-status">
+                  <option value="">Todos</option>
+                  <option value="active">Ativos</option>
+                  <option value="inactive">Inativos</option>
+                </select>
+              </label>
+
+              <label>
+                Loja
+                <input id="employee-filter-store" type="search" placeholder="Ex: Matriz">
+              </label>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>CPF</th>
+                    <th>Loja</th>
+                    <th>Senha</th>
+                    <th>Status</th>
+                    <th>Trocar senha?</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-employees-body">
+                  <tr><td colspan="7">Carregando colaboradores...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <aside class="panel">
+            <div class="section-title">
+              <p class="eyebrow">Novo acesso</p>
+              <h2>Cadastrar colaborador</h2>
+            </div>
+
+            <form id="admin-create-employee-form" class="form">
+              <label>
+                Nome
+                <input name="name" type="text" required placeholder="Nome completo">
+              </label>
+
+              <label>
+                CPF
+                <input name="cpf_digits" type="text" required placeholder="000.000.000-00" maxlength="14">
+              </label>
+
+              <label>
+                Loja
+                <input name="store_sector" type="text" required placeholder="Matriz">
+              </label>
+
+              <label>
+                Senha inicial
+                <input name="password_text" type="text" required value="1234">
+              </label>
+
+              <label>
+                Status
+                <select name="active">
+                  <option value="true">Ativo</option>
+                  <option value="false">Inativo</option>
+                </select>
+              </label>
+
+              <label>
+                Obrigar troca de senha?
+                <select name="must_change_password">
+                  <option value="true">Sim</option>
+                  <option value="false">Não</option>
+                </select>
+              </label>
+
+              <button type="submit">Cadastrar colaborador</button>
+            </form>
+          </aside>
+        </div>
       </section>
 
       <section id="admin-tab-cleanup" class="admin-section">

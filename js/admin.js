@@ -6,7 +6,8 @@ const adminState = {
   ranking: [],
   guesses: [],
   predictions: [],
-  participants: []
+  participants: [],
+  employees: []
 };
 
 const adminLogin = document.querySelector("#admin-login");
@@ -33,9 +34,11 @@ function initAdmin() {
 
 function bindAdminEvents() {
   adminLoginForm?.addEventListener("submit", handleAdminLogin);
+
   adminLoginForm?.querySelector('button[type="submit"]')?.addEventListener("click", () => {
     console.log("Clique no login admin");
   });
+
   adminLogoutButton?.addEventListener("click", handleAdminLogout);
 
   document.querySelectorAll("[data-admin-tab]").forEach((button) => {
@@ -48,6 +51,9 @@ function bindAdminEvents() {
   document.querySelector("#admin-export-guesses")?.addEventListener("click", exportGuessesCsv);
   document.querySelector("#admin-participant-search-form")?.addEventListener("submit", handleParticipantSearch);
 
+  document.querySelector("#admin-refresh-employees")?.addEventListener("click", loadAdminEmployees);
+  document.querySelector("#admin-create-employee-form")?.addEventListener("submit", handleCreateEmployee);
+
   ["#guess-filter-match", "#guess-filter-participant", "#guess-filter-store"].forEach((selector) => {
     document.querySelector(selector)?.addEventListener("input", renderAdminGuesses);
     document.querySelector(selector)?.addEventListener("change", renderAdminGuesses);
@@ -55,6 +61,11 @@ function bindAdminEvents() {
 
   ["#prediction-filter-champion", "#prediction-filter-scorer"].forEach((selector) => {
     document.querySelector(selector)?.addEventListener("input", renderAdminPredictions);
+  });
+
+  ["#employee-filter-search", "#employee-filter-status", "#employee-filter-store"].forEach((selector) => {
+    document.querySelector(selector)?.addEventListener("input", renderAdminEmployees);
+    document.querySelector(selector)?.addEventListener("change", renderAdminEmployees);
   });
 }
 
@@ -110,7 +121,8 @@ async function showAdminPanel() {
       loadAdminMatches(),
       loadAdminRanking(),
       loadAdminGuesses(),
-      loadAdminPredictions()
+      loadAdminPredictions(),
+      loadAdminEmployees()
     ]);
   } catch (error) {
     console.error(error);
@@ -140,6 +152,7 @@ function activateAdminTab(tab) {
   if (tab === "ranking") loadAdminRanking();
   if (tab === "guesses") loadAdminGuesses();
   if (tab === "predictions") loadAdminPredictions();
+  if (tab === "employees") loadAdminEmployees();
 }
 
 async function adminListMatches() {
@@ -273,7 +286,7 @@ async function adminSearchParticipants(searchTerm) {
 
   const client = getSupabaseClient();
   let employeeMatch = null;
-  const cpfDigits = term.replace(/\D/g, "");
+  const cpfDigits = cleanCpfDigits(term);
 
   if (cpfDigits.length >= 6) {
     const { data } = await client.rpc("check_employee_cpf", { cpf_input: cpfDigits });
@@ -337,6 +350,415 @@ async function adminDeleteParticipant(participantId) {
 
   if (error) throw withRlsHint(error, "delete", "participants");
 }
+
+/* =========================================================
+   COLABORADORES AUTORIZADOS
+========================================================= */
+
+async function adminListEmployees() {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("authorized_employees")
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (error) throw withRlsHint(error, "select", "authorized_employees");
+
+  return data || [];
+}
+
+async function adminCreateEmployee(payload) {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("authorized_employees")
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) throw withRlsHint(error, "insert", "authorized_employees");
+
+  return data;
+}
+
+async function adminUpdateEmployee(employeeId, payload) {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("authorized_employees")
+    .update(payload)
+    .eq("id", employeeId)
+    .select()
+    .single();
+
+  if (error) throw withRlsHint(error, "update", "authorized_employees");
+
+  return data;
+}
+
+async function adminDeleteEmployee(employeeId) {
+  const client = getSupabaseClient();
+
+  const { error } = await client
+    .from("authorized_employees")
+    .delete()
+    .eq("id", employeeId);
+
+  if (error) throw withRlsHint(error, "delete", "authorized_employees");
+
+  return true;
+}
+
+async function adminResetEmployeePassword(employeeId) {
+  return adminUpdateEmployee(employeeId, {
+    password_text: "1234",
+    must_change_password: true,
+    password_changed_at: null
+  });
+}
+
+function buildEmployeePayloadFromFormData(formData) {
+  const cpfDigits = cleanCpfDigits(formData.get("cpf_digits"));
+
+  if (cpfDigits.length !== 11) {
+    throw new Error("CPF precisa ter 11 dígitos.");
+  }
+
+  const name = String(formData.get("name") || "").trim().replace(/\s+/g, " ");
+  const storeSector = String(formData.get("store_sector") || "").trim().replace(/\s+/g, " ");
+  const passwordText = String(formData.get("password_text") || "").trim();
+
+  if (!name) throw new Error("Informe o nome.");
+  if (!storeSector) throw new Error("Informe a loja.");
+  if (!passwordText) throw new Error("Informe a senha.");
+
+  return {
+    name,
+    cpf_digits: cpfDigits,
+    store_sector: storeSector,
+    password_text: passwordText,
+    active: String(formData.get("active")) === "true",
+    must_change_password: String(formData.get("must_change_password")) === "true"
+  };
+}
+
+function buildEmployeePayloadFromRow(row) {
+  const cpfDigits = cleanCpfDigits(row.querySelector('[data-employee-field="cpf_digits"]')?.value || "");
+
+  if (cpfDigits.length !== 11) {
+    throw new Error("CPF precisa ter 11 dígitos.");
+  }
+
+  const name = String(row.querySelector('[data-employee-field="name"]')?.value || "").trim().replace(/\s+/g, " ");
+  const storeSector = String(row.querySelector('[data-employee-field="store_sector"]')?.value || "").trim().replace(/\s+/g, " ");
+  const passwordText = String(row.querySelector('[data-employee-field="password_text"]')?.value || "").trim();
+  const active = row.querySelector('[data-employee-field="active"]')?.value === "true";
+  const mustChangePassword = row.querySelector('[data-employee-field="must_change_password"]')?.value === "true";
+
+  if (!name) throw new Error("Informe o nome.");
+  if (!storeSector) throw new Error("Informe a loja.");
+  if (!passwordText) throw new Error("Informe a senha.");
+
+  return {
+    name,
+    cpf_digits: cpfDigits,
+    store_sector: storeSector,
+    password_text: passwordText,
+    active,
+    must_change_password: mustChangePassword
+  };
+}
+
+async function loadAdminEmployees() {
+  const body = document.querySelector("#admin-employees-body");
+
+  if (body) {
+    body.innerHTML = '<tr><td colspan="7">Carregando colaboradores...</td></tr>';
+  }
+
+  try {
+    adminState.employees = await adminListEmployees();
+    renderAdminEmployees();
+  } catch (error) {
+    if (body) {
+      body.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`;
+    }
+
+    console.error(error);
+    showAdminToast(error.message);
+  }
+}
+
+function renderAdminEmployees() {
+  const body = document.querySelector("#admin-employees-body");
+  if (!body) return;
+
+  const searchFilter = normalizeText(document.querySelector("#employee-filter-search")?.value || "");
+  const statusFilter = document.querySelector("#employee-filter-status")?.value || "";
+  const storeFilter = normalizeText(document.querySelector("#employee-filter-store")?.value || "");
+
+  const employees = adminState.employees.filter((employee) => {
+    const combined = normalizeText([
+      employee.name,
+      employee.cpf_digits,
+      employee.store_sector,
+      employee.password_text
+    ].join(" "));
+
+    if (searchFilter && !combined.includes(searchFilter)) return false;
+    if (storeFilter && !normalizeText(employee.store_sector).includes(storeFilter)) return false;
+    if (statusFilter === "active" && !employee.active) return false;
+    if (statusFilter === "inactive" && employee.active) return false;
+
+    return true;
+  });
+
+  if (!employees.length) {
+    body.innerHTML = '<tr><td colspan="7">Nenhum colaborador encontrado.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = employees.map((employee) => `
+    <tr data-employee-row="${escapeHtml(employee.id)}">
+      <td>
+        <input
+          class="admin-table-input"
+          data-employee-field="name"
+          value="${escapeHtml(employee.name || "")}"
+          placeholder="Nome"
+        >
+      </td>
+
+      <td>
+        <input
+          class="admin-table-input"
+          data-employee-field="cpf_digits"
+          value="${escapeHtml(formatCPF(employee.cpf_digits || ""))}"
+          placeholder="CPF"
+          maxlength="14"
+        >
+      </td>
+
+      <td>
+        <input
+          class="admin-table-input"
+          data-employee-field="store_sector"
+          value="${escapeHtml(employee.store_sector || "")}"
+          placeholder="Loja"
+        >
+      </td>
+
+      <td>
+        <input
+          class="admin-table-input"
+          data-employee-field="password_text"
+          value="${escapeHtml(employee.password_text || "")}"
+          placeholder="Senha"
+        >
+      </td>
+
+      <td>
+        <select class="admin-table-input" data-employee-field="active">
+          <option value="true" ${employee.active ? "selected" : ""}>Ativo</option>
+          <option value="false" ${!employee.active ? "selected" : ""}>Inativo</option>
+        </select>
+      </td>
+
+      <td>
+        <select class="admin-table-input" data-employee-field="must_change_password">
+          <option value="true" ${employee.must_change_password ? "selected" : ""}>Sim</option>
+          <option value="false" ${!employee.must_change_password ? "selected" : ""}>Não</option>
+        </select>
+      </td>
+
+      <td>
+        <div class="admin-row-actions">
+          <button type="button" data-save-employee="${escapeHtml(employee.id)}">Salvar</button>
+          <button type="button" data-reset-employee-password="${escapeHtml(employee.id)}">Resetar 1234</button>
+          <button type="button" data-toggle-employee="${escapeHtml(employee.id)}">
+            ${employee.active ? "Desativar" : "Ativar"}
+          </button>
+          <button class="admin-mini-danger" type="button" data-delete-employee="${escapeHtml(employee.id)}">Excluir</button>
+        </div>
+      </td>
+    </tr>
+  `).join("");
+
+  body.querySelectorAll('[data-employee-field="cpf_digits"]').forEach((input) => {
+    input.addEventListener("input", (event) => {
+      event.target.value = formatCPF(event.target.value);
+    });
+  });
+
+  body.querySelectorAll("[data-save-employee]").forEach((button) => {
+    button.addEventListener("click", handleSaveEmployeeRow);
+  });
+
+  body.querySelectorAll("[data-reset-employee-password]").forEach((button) => {
+    button.addEventListener("click", handleResetEmployeePassword);
+  });
+
+  body.querySelectorAll("[data-toggle-employee]").forEach((button) => {
+    button.addEventListener("click", handleToggleEmployee);
+  });
+
+  body.querySelectorAll("[data-delete-employee]").forEach((button) => {
+    button.addEventListener("click", handleDeleteEmployee);
+  });
+}
+
+async function handleCreateEmployee(event) {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+
+  try {
+    const payload = buildEmployeePayloadFromFormData(formData);
+
+    await adminCreateEmployee(payload);
+
+    form.reset();
+
+    const passwordInput = form.querySelector('[name="password_text"]');
+    const activeSelect = form.querySelector('[name="active"]');
+    const mustChangeSelect = form.querySelector('[name="must_change_password"]');
+
+    if (passwordInput) passwordInput.value = "1234";
+    if (activeSelect) activeSelect.value = "true";
+    if (mustChangeSelect) mustChangeSelect.value = "true";
+
+    showAdminToast("Colaborador cadastrado.");
+    await loadAdminEmployees();
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message);
+  }
+}
+
+async function handleSaveEmployeeRow(event) {
+  const button = event.currentTarget;
+  const employeeId = button.dataset.saveEmployee;
+  const row = button.closest("[data-employee-row]");
+
+  if (!row || !employeeId) return;
+
+  try {
+    button.disabled = true;
+    button.textContent = "Salvando...";
+
+    const payload = buildEmployeePayloadFromRow(row);
+
+    await adminUpdateEmployee(employeeId, payload);
+
+    showAdminToast("Colaborador atualizado.");
+    await loadAdminEmployees();
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Salvar";
+  }
+}
+
+async function handleResetEmployeePassword(event) {
+  const button = event.currentTarget;
+  const employeeId = button.dataset.resetEmployeePassword;
+  const row = button.closest("[data-employee-row]");
+  const name = row?.querySelector('[data-employee-field="name"]')?.value || "este colaborador";
+
+  const confirmed = window.confirm(
+    `Resetar a senha de ${name} para 1234?\n\nA pessoa deverá usar 1234 no próximo login.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    button.disabled = true;
+    button.textContent = "Resetando...";
+
+    await adminResetEmployeePassword(employeeId);
+
+    showAdminToast("Senha resetada para 1234.");
+    await loadAdminEmployees();
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Resetar 1234";
+  }
+}
+
+async function handleToggleEmployee(event) {
+  const button = event.currentTarget;
+  const employeeId = button.dataset.toggleEmployee;
+  const row = button.closest("[data-employee-row]");
+
+  const activeSelect = row?.querySelector('[data-employee-field="active"]');
+  const currentActive = activeSelect?.value === "true";
+  const newActive = !currentActive;
+
+  const name = row?.querySelector('[data-employee-field="name"]')?.value || "este colaborador";
+
+  const confirmed = window.confirm(
+    `${newActive ? "Ativar" : "Desativar"} ${name}?\n\n${newActive ? "Ele poderá acessar o bolão." : "Ele não conseguirá acessar o bolão."}`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    button.disabled = true;
+    button.textContent = newActive ? "Ativando..." : "Desativando...";
+
+    await adminUpdateEmployee(employeeId, {
+      active: newActive
+    });
+
+    showAdminToast(newActive ? "Colaborador ativado." : "Colaborador desativado.");
+    await loadAdminEmployees();
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handleDeleteEmployee(event) {
+  const button = event.currentTarget;
+  const employeeId = button.dataset.deleteEmployee;
+  const row = button.closest("[data-employee-row]");
+  const name = row?.querySelector('[data-employee-field="name"]')?.value || "este colaborador";
+
+  const confirmed = window.confirm(
+    `Excluir definitivamente ${name} dos colaboradores autorizados?\n\nIsso remove o acesso dele ao bolão, mas não apaga palpites já feitos no ranking.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    button.disabled = true;
+    button.textContent = "Excluindo...";
+
+    await adminDeleteEmployee(employeeId);
+
+    showAdminToast("Colaborador excluído.");
+    await loadAdminEmployees();
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Excluir";
+  }
+}
+
+/* =========================================================
+   JOGOS
+========================================================= */
 
 async function loadAdminMatches() {
   const list = document.querySelector("#admin-matches-list");
@@ -531,6 +953,10 @@ function buildMatchPayloadFromForm(formData) {
   };
 }
 
+/* =========================================================
+   RANKING
+========================================================= */
+
 async function loadAdminRanking() {
   const body = document.querySelector("#admin-ranking-body");
   if (body) body.innerHTML = '<tr><td colspan="10">Carregando ranking...</td></tr>';
@@ -567,6 +993,10 @@ function renderAdminRanking() {
     </tr>
   `).join("");
 }
+
+/* =========================================================
+   PALPITES
+========================================================= */
 
 async function loadAdminGuesses() {
   const body = document.querySelector("#admin-guesses-body");
@@ -678,6 +1108,10 @@ function renderAdminPredictions() {
   });
 }
 
+/* =========================================================
+   LIMPEZA
+========================================================= */
+
 async function handleParticipantSearch(event) {
   event.preventDefault();
 
@@ -758,8 +1192,17 @@ function renderParticipantResults(participants) {
 }
 
 async function refreshAdminData() {
-  await Promise.all([loadAdminRanking(), loadAdminGuesses(), loadAdminPredictions()]);
+  await Promise.all([
+    loadAdminRanking(),
+    loadAdminGuesses(),
+    loadAdminPredictions(),
+    loadAdminEmployees()
+  ]);
 }
+
+/* =========================================================
+   EXPORTAÇÃO
+========================================================= */
 
 function exportGuessesCsv() {
   const rows = adminState.guesses.map((guess) => {
@@ -798,6 +1241,10 @@ function exportGuessesCsv() {
 
   URL.revokeObjectURL(url);
 }
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function fillGuessMatchFilter() {
   const select = document.querySelector("#guess-filter-match");
@@ -940,6 +1387,26 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function cleanCpfDigits(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 11);
+}
+
+function formatCPF(value) {
+  const digits = cleanCpfDigits(value);
+
+  if (digits.length <= 3) return digits;
+
+  if (digits.length <= 6) {
+    return digits.replace(/(\d{3})(\d+)/, "$1.$2");
+  }
+
+  if (digits.length <= 9) {
+    return digits.replace(/(\d{3})(\d{3})(\d+)/, "$1.$2.$3");
+  }
+
+  return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
 }
 
 function statusClass(status) {
