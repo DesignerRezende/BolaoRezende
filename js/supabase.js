@@ -172,19 +172,79 @@ async function saveParticipantPrediction(payload) {
 async function registerGuess(guess) {
   const client = getSupabaseClient();
 
+  const participantId = guess.participant_id;
+  const matchId = guess.match_id;
+  const homeScore = Number(guess.home_score_guess);
+  const awayScore = Number(guess.away_score_guess);
+
+  if (!participantId) {
+    throw new Error("Participante não identificado.");
+  }
+
+  if (!matchId) {
+    throw new Error("Jogo não identificado.");
+  }
+
+  if (!Number.isFinite(homeScore) || homeScore < 0) {
+    throw new Error("Placar A inválido.");
+  }
+
+  if (!Number.isFinite(awayScore) || awayScore < 0) {
+    throw new Error("Placar B inválido.");
+  }
+
+  const now = new Date().toISOString();
+
+  const { data: existingGuess, error: findError } = await client
+    .from("guesses")
+    .select("*")
+    .eq("participant_id", participantId)
+    .eq("match_id", matchId)
+    .maybeSingle();
+
+  if (findError) {
+    console.error("Erro ao procurar palpite existente:", findError);
+    throw findError;
+  }
+
+  if (existingGuess && existingGuess.id) {
+    const { data, error } = await client
+      .from("guesses")
+      .update({
+        home_score_guess: homeScore,
+        away_score_guess: awayScore,
+        updated_at: now
+      })
+      .eq("id", existingGuess.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Erro ao atualizar palpite:", error);
+      throw error;
+    }
+
+    return data;
+  }
+
   const { data, error } = await client
     .from("guesses")
-    .upsert({
-      participant_id: guess.participant_id,
-      match_id: guess.match_id,
-      home_score_guess: Number(guess.home_score_guess),
-      away_score_guess: Number(guess.away_score_guess),
-      updated_at: new Date().toISOString()
-    }, { onConflict: "participant_id,match_id" })
+    .insert({
+      participant_id: participantId,
+      match_id: matchId,
+      home_score_guess: homeScore,
+      away_score_guess: awayScore,
+      created_at: now,
+      updated_at: now
+    })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error("Erro ao criar palpite:", error);
+    throw error;
+  }
+
   return data;
 }
 
@@ -398,13 +458,13 @@ function calculatePoints(guess, match) {
   if (match.home_score === null || match.away_score === null) return 0;
 
   const exactScore =
-    guess.home_score_guess === match.home_score &&
-    guess.away_score_guess === match.away_score;
+    Number(guess.home_score_guess) === Number(match.home_score) &&
+    Number(guess.away_score_guess) === Number(match.away_score);
 
   if (exactScore) return 5;
 
-  const realResult = Math.sign(match.home_score - match.away_score);
-  const guessResult = Math.sign(guess.home_score_guess - guess.away_score_guess);
+  const realResult = Math.sign(Number(match.home_score) - Number(match.away_score));
+  const guessResult = Math.sign(Number(guess.home_score_guess) - Number(guess.away_score_guess));
 
   return realResult === guessResult ? 3 : 0;
 }
@@ -528,11 +588,11 @@ async function listRanking() {
 
     if (match.status === "encerrado" && match.home_score !== null && match.away_score !== null) {
       const exactScore =
-        guess.home_score_guess === match.home_score &&
-        guess.away_score_guess === match.away_score;
+        Number(guess.home_score_guess) === Number(match.home_score) &&
+        Number(guess.away_score_guess) === Number(match.away_score);
 
-      const realResult = Math.sign(match.home_score - match.away_score);
-      const guessResult = Math.sign(guess.home_score_guess - guess.away_score_guess);
+      const realResult = Math.sign(Number(match.home_score) - Number(match.away_score));
+      const guessResult = Math.sign(Number(guess.home_score_guess) - Number(guess.away_score_guess));
 
       if (exactScore) {
         row.exactScores += 1;
