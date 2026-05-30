@@ -808,27 +808,38 @@ function renderMatchCard(match) {
   const focused = String(state.focusMatchId) === String(match.id);
 
   const matchStatus = String(match.status || "").toLowerCase();
-  const hasRealScore =
-    matchStatus === "encerrado" &&
+
+  const hasScore =
     match.home_score !== null &&
     match.home_score !== undefined &&
     match.away_score !== null &&
     match.away_score !== undefined;
 
-  const realScoreHtml = hasRealScore
+  const shouldShowRealScore =
+    hasScore &&
+    (matchStatus === "ao vivo" || matchStatus === "encerrado");
+
+  const realScoreLabel = matchStatus === "ao vivo" ? "Placar ao vivo" : "Placar final";
+
+  const realScoreSubtext =
+    matchStatus === "ao vivo"
+      ? "Resultado parcial atualizado pela integração."
+      : "Resultado oficial do jogo.";
+
+  const realScoreHtml = shouldShowRealScore
     ? `
       <div class="saved-guess saved-guess--result">
-        <strong>Placar real: ${escapeHtml(match.home_team)} ${Number(match.home_score)} x ${Number(match.away_score)} ${escapeHtml(match.away_team)}</strong>
-        <span>Resultado oficial do jogo.</span>
+        <strong>${realScoreLabel}: ${escapeHtml(match.home_team)} ${Number(match.home_score)} x ${Number(match.away_score)} ${escapeHtml(match.away_team)}</strong>
+        <span>${realScoreSubtext}</span>
       </div>
     `
     : "";
 
-  const guessPointsHtml = hasRealScore && savedGuess
+  const guessPointsHtml = matchStatus === "encerrado" && hasScore && savedGuess
     ? `
       <div class="saved-guess saved-guess--points">
         <strong>${getPointsTextForGuess(savedGuess, match)}</strong>
-        <span>Calculado com base no placar real.</span>
+        <span>Calculado com base no placar final.</span>
       </div>
     `
     : "";
