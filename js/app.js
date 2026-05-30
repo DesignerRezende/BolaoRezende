@@ -14,6 +14,7 @@ const state = {
   selectedTopScorerPlayerId: null,
   matchFilter: "todos",
   openPhase: "",
+  focusMatchId: null,
   guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG,
   matchDeadlineSettings: {}
 };
@@ -99,6 +100,7 @@ document.querySelectorAll("[data-match-filter]").forEach((button) => {
     });
 
     state.openPhase = "";
+    state.focusMatchId = null;
     renderMatches();
   });
 });
@@ -163,6 +165,8 @@ function showPublicBottomNav() {
 
 async function initApp() {
   console.log("initApp iniciou");
+
+  ensureMatchFocusStyles();
 
   await createOrUpdateParticipantFromEmployee();
 
@@ -339,6 +343,7 @@ async function loadGuessDeadlineConfig() {
 async function loadDashboard() {
   try {
     state.openPhase = "";
+    state.focusMatchId = null;
 
     await loadGuessDeadlineConfig();
 
@@ -394,6 +399,11 @@ function renderLiveBox() {
 
   if (!state.matches.length) {
     liveBox.innerHTML = '<p class="empty">Nenhum jogo cadastrado.</p>';
+    liveBox.removeAttribute("role");
+    liveBox.removeAttribute("tabindex");
+    liveBox.classList.remove("live-box-clickable");
+    liveBox.onclick = null;
+    liveBox.onkeydown = null;
     return;
   }
 
@@ -408,6 +418,11 @@ function renderLiveBox() {
   const homeTeam = findWorldCupTeamByName(match.home_team);
   const awayTeam = findWorldCupTeamByName(match.away_team);
   const deadlineConfig = getDeadlineConfigForMatch(match);
+
+  liveBox.classList.add("live-box-clickable");
+  liveBox.setAttribute("role", "button");
+  liveBox.setAttribute("tabindex", "0");
+  liveBox.setAttribute("aria-label", `Ir para o palpite de ${match.home_team} contra ${match.away_team}`);
 
   liveBox.innerHTML = `
     <div class="next-match-card">
@@ -436,12 +451,44 @@ function renderLiveBox() {
         ${closed ? "Os palpites deste jogo já foram fechados." : `Palpites abertos até ${formatDateSentence(closeTime)}`}
       </span>
       <span class="countdown-sub">${escapeHtml(getGuessDeadlineRuleText(deadlineConfig))}</span>
+      <span class="countdown-jump-hint">Clique aqui para ir direto ao palpite deste jogo.</span>
     </div>
 
     <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
     <p>${formatDate(match.match_date)} · ${escapeHtml(match.phase || "Fase não informada")}</p>
     <p><strong>${state.guessCounts[match.id] || 0}</strong> palpites registrados</p>
   `;
+
+  liveBox.onclick = () => {
+    focusMatchFromLiveBox(match.id);
+  };
+
+  liveBox.onkeydown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      focusMatchFromLiveBox(match.id);
+    }
+  };
+}
+
+function focusMatchFromLiveBox(matchId) {
+  const match = state.matches.find((item) => String(item.id) === String(matchId));
+
+  if (!match) {
+    showToast("Jogo não encontrado.");
+    return;
+  }
+
+  closeFloatingPanels();
+
+  const phaseName = normalizePhaseName(match.phase);
+
+  state.openPhase = phaseName;
+  state.focusMatchId = match.id;
+
+  renderMatches({
+    scrollToMatchId: match.id
+  });
 }
 
 function getOrderedPhaseSections(matchesByPhase) {
@@ -538,6 +585,7 @@ function renderMatches(options = {}) {
       const willOpen = state.openPhase !== phaseName;
 
       state.openPhase = willOpen ? phaseName : "";
+      state.focusMatchId = null;
 
       renderMatches({
         scrollToPhase: willOpen ? phaseName : null
@@ -551,6 +599,10 @@ function renderMatches(options = {}) {
 
   if (options.scrollToPhase) {
     scrollPhaseAccordionIntoView(options.scrollToPhase);
+  }
+
+  if (options.scrollToMatchId) {
+    scrollMatchCardIntoView(options.scrollToMatchId);
   }
 }
 
@@ -583,6 +635,42 @@ function scrollPhaseAccordionIntoView(phaseName) {
       top: targetTop,
       behavior: "smooth"
     });
+  });
+}
+
+function scrollMatchCardIntoView(matchId) {
+  if (!matchId) return;
+
+  ensureMatchFocusStyles();
+
+  window.requestAnimationFrame(() => {
+    const selector = `[data-match-id-card="${cssEscape(matchId)}"]`;
+    const card = document.querySelector(selector);
+
+    if (!card) {
+      showToast("Não encontrei o card deste jogo na lista.");
+      return;
+    }
+
+    const offset = getFixedTopOffset();
+    const currentTop = window.scrollY || document.documentElement.scrollTop || 0;
+    const cardTop = card.getBoundingClientRect().top + currentTop;
+    const targetTop = Math.max(cardTop - offset - 18, 0);
+
+    card.classList.add("is-focused");
+
+    window.scrollTo({
+      top: targetTop,
+      behavior: "smooth"
+    });
+
+    window.setTimeout(() => {
+      card.classList.remove("is-focused");
+
+      if (String(state.focusMatchId) === String(matchId)) {
+        state.focusMatchId = null;
+      }
+    }, 4200);
   });
 }
 
@@ -624,9 +712,10 @@ function renderMatchCard(match) {
   const homeTeam = findWorldCupTeamByName(match.home_team);
   const awayTeam = findWorldCupTeamByName(match.away_team);
   const specificDeadline = hasSpecificDeadlineForMatch(match);
+  const focused = String(state.focusMatchId) === String(match.id);
 
   return `
-    <article class="match-card" data-locked="${locked}">
+    <article class="match-card ${focused ? "is-focused" : ""}" data-locked="${locked}" data-match-id-card="${escapeHtml(match.id)}">
       <div class="match-header">
         <div>
           <div class="match-meta">
@@ -1444,6 +1533,61 @@ function statusClass(status) {
 
 function pad2(value) {
   return String(value).padStart(2, "0");
+}
+
+function ensureMatchFocusStyles() {
+  if (document.querySelector("#match-focus-styles")) return;
+
+  const style = document.createElement("style");
+  style.id = "match-focus-styles";
+  style.textContent = `
+    .live-box-clickable {
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .live-box-clickable:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 0 3px rgba(255, 223, 0, 0.16), 0 18px 36px rgba(0, 0, 0, 0.36);
+    }
+
+    .live-box-clickable:focus {
+      outline: none;
+      box-shadow: 0 0 0 4px rgba(255, 223, 0, 0.28), 0 18px 36px rgba(0, 0, 0, 0.36);
+    }
+
+    .countdown-jump-hint {
+      display: block;
+      margin-top: 8px;
+      color: #ffdf00;
+      font-size: 0.78rem;
+      font-weight: 900;
+      opacity: 0.86;
+    }
+
+    .match-card.is-focused {
+      animation: matchFocusPulse 1.15s ease-in-out 0s 3;
+      box-shadow:
+        0 0 0 3px rgba(255, 223, 0, 0.42),
+        0 0 36px rgba(255, 223, 0, 0.24),
+        0 18px 42px rgba(0, 0, 0, 0.42) !important;
+      border-color: rgba(255, 223, 0, 0.72) !important;
+    }
+
+    @keyframes matchFocusPulse {
+      0% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-4px);
+      }
+      100% {
+        transform: translateY(0);
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
 }
 
 function showToast(message) {
