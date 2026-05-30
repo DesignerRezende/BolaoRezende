@@ -13,7 +13,8 @@ const state = {
   selectedChampionTeamId: null,
   selectedTopScorerPlayerId: null,
   matchFilter: "todos",
-  openPhase: ""
+  openPhase: "",
+  guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG
 };
 
 const PHASE_SECTIONS = [
@@ -67,7 +68,6 @@ const bottomNavToday = document.querySelector("#bottom-nav-today");
 const bottomNavRanking = document.querySelector("#bottom-nav-ranking");
 const bottomNav = document.querySelector(".bottom-nav");
 
-const GUESS_CLOSE_MINUTES_BEFORE_MATCH = 20;
 let countdownTimer = null;
 
 if (participantForm) {
@@ -306,9 +306,22 @@ async function loadCupPredictionData() {
   }
 }
 
+async function loadGuessDeadlineConfig() {
+  try {
+    state.guessDeadlineConfig = await getGuessDeadlineConfig();
+  } catch (error) {
+    console.error("Erro ao carregar prazo dos palpites:", error);
+    state.guessDeadlineConfig = DEFAULT_GUESS_DEADLINE_CONFIG;
+  }
+
+  updateRuleDeadlineText();
+}
+
 async function loadDashboard() {
   try {
     state.openPhase = "";
+    await loadGuessDeadlineConfig();
+
     state.matches = await listMatches();
     state.guessCounts = await getGuessCounts();
     state.guesses = await listParticipantGuesses(state.participant?.id);
@@ -333,6 +346,27 @@ async function loadDashboard() {
       liveBox.textContent = "Erro ao carregar jogos.";
     }
   }
+}
+
+function updateRuleDeadlineText() {
+  const ruleText = getGuessDeadlineRuleText(state.guessDeadlineConfig);
+
+  document.querySelectorAll("li, p, span, strong").forEach((element) => {
+    const text = String(element.textContent || "").trim();
+
+    const isOldDeadlineText =
+      text.includes("Palpites fecham 20 minutos antes") ||
+      text.includes("Palpites encerram 20 minutos antes") ||
+      text.includes("20 minutos antes de cada jogo");
+
+    const isDynamicDeadlineText =
+      element.dataset && element.dataset.deadlineRule === "true";
+
+    if (isOldDeadlineText || isDynamicDeadlineText) {
+      element.dataset.deadlineRule = "true";
+      element.innerHTML = ruleText.replace(/(\d{2}:\d{2}|\\d+\\s\\w+)/, "<strong>$1</strong>");
+    }
+  });
 }
 
 function renderLiveBox() {
@@ -378,7 +412,7 @@ function renderLiveBox() {
       <span class="countdown-label">${closed ? "Palpites encerrados" : "Tempo restante"}</span>
       <strong class="countdown-time">${countdown}</strong>
       <span class="countdown-sub">
-        ${closed ? "Os palpites deste jogo já foram fechados." : `Palpites abertos até ${formatTime(closeTime)}`}
+        ${closed ? "Os palpites deste jogo já foram fechados." : `Palpites abertos até ${formatDateSentence(closeTime)}`}
       </span>
     </div>
 
@@ -527,7 +561,7 @@ function renderMatchCard(match) {
           <div class="match-meta">${escapeHtml(match.phase || "Fase não informada")}</div>
           <div class="match-timer" data-countdown-match-id="${match.id}">${getCountdownText(match)}</div>
           <div class="match-countdown">
-            ${locked ? "Palpites encerrados" : `Palpites abertos até ${formatTime(closeTime)}`}
+            ${locked ? "Palpites encerrados" : `Palpites abertos até ${formatDateSentence(closeTime)}`}
           </div>
         </div>
 
@@ -795,10 +829,6 @@ async function handlePredictionNext() {
     selected_at: new Date().toISOString()
   };
 
-  console.log("selectedChampion:", selectedChampion);
-  console.log("selectedTopScorer:", selectedTopScorer);
-  console.log("Payload final:", payload);
-
   const missingFields = [
     ["participant_id", payload.participant_id],
     ["champion_team_id", payload.champion_team_id],
@@ -893,7 +923,7 @@ async function handleGuessSubmit(event) {
   }
 
   if (isGuessClosed(match)) {
-    showToast("O prazo para este palpite encerrou 20 minutos antes do jogo.");
+    showToast(`O prazo para este palpite encerrou em ${formatDateSentence(getGuessCloseDate(match))}.`);
     await loadDashboard();
     return;
   }
@@ -930,21 +960,17 @@ function isGuessClosed(match) {
     return true;
   }
 
-  const matchDate = new Date(match.match_date);
+  const closeDate = getGuessCloseDate(match);
 
-  if (Number.isNaN(matchDate.getTime())) {
+  if (Number.isNaN(closeDate.getTime())) {
     return true;
   }
 
-  const closeDate = getGuessCloseDate(match);
-  const now = new Date();
-
-  return now >= closeDate;
+  return new Date() >= closeDate;
 }
 
 function getGuessCloseDate(match) {
-  const matchDate = new Date(match.match_date);
-  return new Date(matchDate.getTime() - GUESS_CLOSE_MINUTES_BEFORE_MATCH * 60 * 1000);
+  return calculateGuessCloseDate(match, state.guessDeadlineConfig);
 }
 
 function startCountdowns() {
@@ -978,7 +1004,7 @@ function updateCountdowns() {
     card.dataset.locked = String(locked);
 
     if (countdown) {
-      countdown.textContent = locked ? "Palpites encerrados" : `Palpites abertos até ${formatTime(getGuessCloseDate(match))}`;
+      countdown.textContent = locked ? "Palpites encerrados" : `Palpites abertos até ${formatDateSentence(getGuessCloseDate(match))}`;
     }
 
     form?.querySelectorAll("input").forEach((input) => {
@@ -1001,16 +1027,16 @@ function getCountdownText(match) {
     return "Jogo encerrado";
   }
 
-  const matchDate = new Date(match.match_date);
+  const closeDate = getGuessCloseDate(match);
   const now = new Date();
-  const diff = matchDate.getTime() - now.getTime();
+  const diff = closeDate.getTime() - now.getTime();
 
-  if (Number.isNaN(matchDate.getTime())) {
+  if (Number.isNaN(closeDate.getTime())) {
     return "Data inválida";
   }
 
   if (diff <= 0) {
-    return "Jogo iniciado";
+    return "Palpites encerrados";
   }
 
   const totalSeconds = Math.floor(diff / 1000);
@@ -1020,10 +1046,10 @@ function getCountdownText(match) {
   const seconds = totalSeconds % 60;
 
   if (days > 0) {
-    return `Faltam ${days}d ${pad2(hours)}h ${pad2(minutes)}m`;
+    return `Fecha em ${days}d ${pad2(hours)}h ${pad2(minutes)}m`;
   }
 
-  return `Faltam ${pad2(hours)}h ${pad2(minutes)}m ${pad2(seconds)}s`;
+  return `Fecha em ${pad2(hours)}h ${pad2(minutes)}m ${pad2(seconds)}s`;
 }
 
 function openFloatingPanel(panel) {
@@ -1086,7 +1112,7 @@ function renderTodayGames() {
             <div class="match-meta">${escapeHtml(match.phase || "Fase não informada")}</div>
             <div class="match-timer">${getCountdownText(match)}</div>
             <div class="match-countdown">
-              ${locked ? "Palpites encerrados" : `Palpites abertos até ${formatTime(closeTime)}`}
+              ${locked ? "Palpites encerrados" : `Palpites abertos até ${formatDateSentence(closeTime)}`}
             </div>
           </div>
 
@@ -1154,13 +1180,19 @@ function formatTime(value) {
 function formatDateSentence(value) {
   if (!value) return "data não informada";
 
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "data não informada";
+  }
+
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
-  }).format(new Date(value)).replace(",", " às");
+  }).format(date).replace(",", " às");
 }
 
 function getGuessAction(guess) {

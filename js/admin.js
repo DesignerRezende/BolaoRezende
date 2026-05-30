@@ -7,7 +7,8 @@ const adminState = {
   guesses: [],
   predictions: [],
   participants: [],
-  employees: []
+  employees: [],
+  guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG
 };
 
 const adminLogin = document.querySelector("#admin-login");
@@ -55,6 +56,9 @@ function bindAdminEvents() {
   document.querySelector("#admin-create-employee-form")?.addEventListener("submit", handleCreateEmployee);
   document.querySelector("#admin-employees-search-form")?.addEventListener("submit", handleEmployeesSearch);
   document.querySelector("#admin-clear-employees-search")?.addEventListener("click", handleClearEmployeesSearch);
+
+  document.querySelector("#admin-guess-deadline-form")?.addEventListener("submit", handleSaveGuessDeadlineConfig);
+  document.querySelector("#admin-deadline-mode")?.addEventListener("change", updateGuessDeadlineFormState);
 
   document.querySelector('#admin-create-employee-form [name="cpf_digits"]')?.addEventListener("input", (event) => {
     event.target.value = formatCPF(event.target.value);
@@ -118,6 +122,8 @@ async function showAdminPanel() {
   }
 
   try {
+    await loadAdminGuessDeadlineConfig();
+
     await Promise.all([
       loadAdminMatches(),
       loadAdminRanking(),
@@ -148,7 +154,11 @@ function activateAdminTab(tab) {
     section.classList.toggle("is-active", section.id === `admin-tab-${tab}`);
   });
 
-  if (tab === "matches") loadAdminMatches();
+  if (tab === "matches") {
+    loadAdminGuessDeadlineConfig();
+    loadAdminMatches();
+  }
+
   if (tab === "ranking") loadAdminRanking();
   if (tab === "guesses") loadAdminGuesses();
   if (tab === "predictions") loadAdminPredictions();
@@ -201,6 +211,134 @@ async function adminDeleteMatch(matchId) {
 
   if (matchError) throw withRlsHint(matchError, "delete", "matches");
 }
+
+/* =========================================================
+   CONFIGURAÇÃO DO PRAZO DOS PALPITES
+========================================================= */
+
+async function adminGetGuessDeadlineConfig() {
+  return getGuessDeadlineConfig();
+}
+
+async function adminSaveGuessDeadlineConfig(payload) {
+  return saveGuessDeadlineConfig(payload);
+}
+
+async function loadAdminGuessDeadlineConfig() {
+  try {
+    adminState.guessDeadlineConfig = await adminGetGuessDeadlineConfig();
+  } catch (error) {
+    console.error("Erro ao carregar configuração de prazo:", error);
+    adminState.guessDeadlineConfig = DEFAULT_GUESS_DEADLINE_CONFIG;
+    showAdminToast("Não foi possível carregar a regra dos palpites. Usando padrão.");
+  }
+
+  renderGuessDeadlineConfigForm();
+}
+
+function renderGuessDeadlineConfigForm() {
+  const modeInput = document.querySelector("#admin-deadline-mode");
+  const amountInput = document.querySelector("#admin-deadline-amount");
+  const unitInput = document.querySelector("#admin-deadline-unit");
+  const previousDayTimeInput = document.querySelector("#admin-deadline-previous-day-time");
+  const currentText = document.querySelector("#admin-deadline-current");
+
+  const config = normalizeGuessDeadlineConfig(adminState.guessDeadlineConfig);
+
+  if (modeInput) modeInput.value = config.mode;
+  if (amountInput) amountInput.value = config.amount || 1;
+  if (unitInput) unitInput.value = config.unit === "hours" ? "hours" : "minutes";
+  if (previousDayTimeInput) previousDayTimeInput.value = config.previousDayTime || "23:59";
+
+  if (currentText) {
+    currentText.innerHTML = `Regra atual: <strong>${escapeHtml(getGuessDeadlineRuleText(config))}</strong>`;
+  }
+
+  updateGuessDeadlineFormState();
+}
+
+function updateGuessDeadlineFormState() {
+  const mode = document.querySelector("#admin-deadline-mode")?.value || "previous_day";
+  const amountInput = document.querySelector("#admin-deadline-amount");
+  const unitInput = document.querySelector("#admin-deadline-unit");
+  const previousDayTimeInput = document.querySelector("#admin-deadline-previous-day-time");
+
+  const isPreviousDay = mode === "previous_day";
+
+  if (amountInput) {
+    amountInput.disabled = isPreviousDay;
+    amountInput.parentElement.style.opacity = isPreviousDay ? "0.45" : "1";
+  }
+
+  if (unitInput) {
+    unitInput.disabled = isPreviousDay;
+    unitInput.parentElement.style.opacity = isPreviousDay ? "0.45" : "1";
+  }
+
+  if (previousDayTimeInput) {
+    previousDayTimeInput.disabled = !isPreviousDay;
+    previousDayTimeInput.parentElement.style.opacity = isPreviousDay ? "1" : "0.45";
+  }
+}
+
+async function handleSaveGuessDeadlineConfig(event) {
+  event.preventDefault();
+
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+
+  const mode = String(formData.get("mode") || "previous_day");
+  const amount = Number(formData.get("amount") || 1);
+  const unit = String(formData.get("unit") || "minutes");
+  const previousDayTime = String(formData.get("previousDayTime") || "23:59");
+
+  const payload = mode === "previous_day"
+    ? {
+        mode: "previous_day",
+        amount: 1,
+        unit: "day",
+        previousDayTime
+      }
+    : {
+        mode: "relative",
+        amount,
+        unit,
+        previousDayTime
+      };
+
+  try {
+    const button = form.querySelector('button[type="submit"]');
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Salvando...";
+    }
+
+    adminState.guessDeadlineConfig = await adminSaveGuessDeadlineConfig(payload);
+
+    renderGuessDeadlineConfigForm();
+    showAdminToast("Regra de prazo dos palpites atualizada.");
+
+    await Promise.all([
+      loadAdminMatches(),
+      loadAdminGuesses()
+    ]);
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message || "Não foi possível salvar a regra.");
+  } finally {
+    const button = form.querySelector('button[type="submit"]');
+
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Salvar regra";
+    }
+  }
+}
+
+/* =========================================================
+   RANKING
+========================================================= */
 
 async function adminListRanking() {
   const [ranking, matches, guesses, predictions] = await Promise.all([

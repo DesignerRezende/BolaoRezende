@@ -261,6 +261,47 @@
       max-width: none !important;
     }
 
+    .admin-deadline-panel {
+      margin-bottom: 24px !important;
+      border-top: 3px solid rgba(255, 223, 0, 0.8) !important;
+    }
+
+    .admin-deadline-form {
+      display: grid !important;
+      grid-template-columns: minmax(240px, 1.3fr) 140px 160px 160px auto !important;
+      gap: 14px !important;
+      align-items: end !important;
+      width: 100% !important;
+    }
+
+    .admin-deadline-form label {
+      margin: 0 !important;
+      min-width: 0 !important;
+    }
+
+    .admin-deadline-form input,
+    .admin-deadline-form select {
+      width: 100% !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+    }
+
+    .admin-deadline-form button {
+      min-height: 48px !important;
+      white-space: nowrap !important;
+    }
+
+    .admin-deadline-current {
+      margin-top: 14px !important;
+      color: rgba(255, 255, 255, 0.72) !important;
+      font-weight: 800 !important;
+      font-size: 0.92rem !important;
+    }
+
+    .admin-deadline-current strong {
+      color: #ffdf00 !important;
+    }
+
     @media (max-width: 1300px) {
       body.admin-page #admin-tab-employees .table-wrap {
         overflow-x: auto !important;
@@ -276,6 +317,10 @@
 
       body.admin-page #admin-tab-matches .admin-grid {
         grid-template-columns: 1fr !important;
+      }
+
+      .admin-deadline-form {
+        grid-template-columns: 1fr 1fr !important;
       }
     }
 
@@ -304,6 +349,10 @@
 
       body.admin-page #admin-tab-employees table {
         min-width: 1080px !important;
+      }
+
+      .admin-deadline-form {
+        grid-template-columns: 1fr !important;
       }
     }
   </style>
@@ -362,6 +411,47 @@
       </nav>
 
       <section id="admin-tab-matches" class="admin-section is-active">
+        <article class="panel admin-deadline-panel">
+          <div class="section-title">
+            <p class="eyebrow">Regra dos palpites</p>
+            <h2>Prazo de encerramento</h2>
+          </div>
+
+          <form id="admin-guess-deadline-form" class="admin-deadline-form">
+            <label>
+              Tipo de encerramento
+              <select id="admin-deadline-mode" name="mode">
+                <option value="previous_day">Dia anterior em horário específico</option>
+                <option value="relative">Antes do horário do jogo</option>
+              </select>
+            </label>
+
+            <label>
+              Quantidade
+              <input id="admin-deadline-amount" name="amount" type="number" min="1" step="1" value="1">
+            </label>
+
+            <label>
+              Unidade
+              <select id="admin-deadline-unit" name="unit">
+                <option value="minutes">Minutos antes</option>
+                <option value="hours">Horas antes</option>
+              </select>
+            </label>
+
+            <label>
+              Horário do dia anterior
+              <input id="admin-deadline-previous-day-time" name="previousDayTime" type="time" value="23:59">
+            </label>
+
+            <button type="submit">Salvar regra</button>
+          </form>
+
+          <p id="admin-deadline-current" class="admin-deadline-current">
+            Regra atual: <strong>carregando...</strong>
+          </p>
+        </article>
+
         <div class="admin-grid">
           <article class="panel">
             <div class="section-title row-title">
