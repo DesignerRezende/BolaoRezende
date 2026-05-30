@@ -807,6 +807,32 @@ function renderMatchCard(match) {
   const specificDeadline = hasSpecificDeadlineForMatch(match);
   const focused = String(state.focusMatchId) === String(match.id);
 
+  const matchStatus = String(match.status || "").toLowerCase();
+  const hasRealScore =
+    matchStatus === "encerrado" &&
+    match.home_score !== null &&
+    match.home_score !== undefined &&
+    match.away_score !== null &&
+    match.away_score !== undefined;
+
+  const realScoreHtml = hasRealScore
+    ? `
+      <div class="saved-guess saved-guess--result">
+        <strong>Placar real: ${escapeHtml(match.home_team)} ${Number(match.home_score)} x ${Number(match.away_score)} ${escapeHtml(match.away_team)}</strong>
+        <span>Resultado oficial do jogo.</span>
+      </div>
+    `
+    : "";
+
+  const guessPointsHtml = hasRealScore && savedGuess
+    ? `
+      <div class="saved-guess saved-guess--points">
+        <strong>${getPointsTextForGuess(savedGuess, match)}</strong>
+        <span>Calculado com base no placar real.</span>
+      </div>
+    `
+    : "";
+
   return `
     <article class="match-card ${focused ? "is-focused" : ""}" data-locked="${locked}" data-match-id-card="${escapeHtml(match.id)}">
       <div class="match-header">
@@ -824,12 +850,16 @@ function renderMatchCard(match) {
         <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
       </div>
 
+      ${realScoreHtml}
+
       ${savedGuess ? `
         <div class="saved-guess">
           <strong>Seu palpite: ${escapeHtml(match.home_team)} ${savedGuess.home_score_guess} x ${savedGuess.away_score_guess} ${escapeHtml(match.away_team)}</strong>
           <span>${guessAction} em ${formatDateSentence(guessTimestamp)}</span>
         </div>
       ` : ""}
+
+      ${guessPointsHtml}
 
       <form class="guess-form" data-match-id="${match.id}">
         <div class="match-team">
@@ -861,6 +891,45 @@ function renderMatchCard(match) {
       </form>
     </article>
   `;
+}
+
+function getPointsTextForGuess(guess, match) {
+  if (!guess || !match) {
+    return "Você fez 0 ponto neste jogo.";
+  }
+
+  if (String(match.status || "").toLowerCase() !== "encerrado") {
+    return "Pontuação disponível após o encerramento.";
+  }
+
+  if (
+    match.home_score === null ||
+    match.home_score === undefined ||
+    match.away_score === null ||
+    match.away_score === undefined
+  ) {
+    return "Pontuação disponível após o placar oficial.";
+  }
+
+  const guessHome = Number(guess.home_score_guess);
+  const guessAway = Number(guess.away_score_guess);
+  const realHome = Number(match.home_score);
+  const realAway = Number(match.away_score);
+
+  const exactScore = guessHome === realHome && guessAway === realAway;
+
+  if (exactScore) {
+    return "Você fez 5 pontos: acertou o placar exato.";
+  }
+
+  const realResult = Math.sign(realHome - realAway);
+  const guessResult = Math.sign(guessHome - guessAway);
+
+  if (realResult === guessResult) {
+    return "Você fez 3 pontos: acertou o vencedor ou empate.";
+  }
+
+  return "Você fez 0 ponto neste jogo.";
 }
 
 function groupMatchesByPhase(matches) {
