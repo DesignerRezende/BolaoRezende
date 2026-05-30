@@ -8,7 +8,8 @@ const adminState = {
   predictions: [],
   participants: [],
   employees: [],
-  guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG
+  guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG,
+  matchDeadlineSettings: {}
 };
 
 const adminLogin = document.querySelector("#admin-login");
@@ -46,7 +47,11 @@ function bindAdminEvents() {
     button.addEventListener("click", () => activateAdminTab(button.dataset.adminTab));
   });
 
-  document.querySelector("#admin-refresh-matches")?.addEventListener("click", loadAdminMatches);
+  document.querySelector("#admin-refresh-matches")?.addEventListener("click", async () => {
+    await loadAdminMatches();
+    await loadAdminGuessDeadlineConfig();
+  });
+
   document.querySelector("#admin-create-match-form")?.addEventListener("submit", handleCreateMatch);
   document.querySelector("#admin-refresh-ranking")?.addEventListener("click", loadAdminRanking);
   document.querySelector("#admin-export-guesses")?.addEventListener("click", exportGuessesCsv);
@@ -59,6 +64,16 @@ function bindAdminEvents() {
 
   document.querySelector("#admin-guess-deadline-form")?.addEventListener("submit", handleSaveGuessDeadlineConfig);
   document.querySelector("#admin-deadline-mode")?.addEventListener("change", updateGuessDeadlineFormState);
+  document.querySelector("#admin-deadline-scope")?.addEventListener("change", handleDeadlineScopeChange);
+  document.querySelector("#admin-deadline-match-id")?.addEventListener("change", handleDeadlineMatchChange);
+  document.querySelector("#admin-remove-match-deadline")?.addEventListener("click", handleRemoveMatchDeadlineConfig);
+
+  document.querySelectorAll("[data-fill-phase]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const phaseInput = document.querySelector('#admin-create-match-form [name="phase"]');
+      if (phaseInput) phaseInput.value = button.dataset.fillPhase || "";
+    });
+  });
 
   document.querySelector('#admin-create-employee-form [name="cpf_digits"]')?.addEventListener("input", (event) => {
     event.target.value = formatCPF(event.target.value);
@@ -122,14 +137,14 @@ async function showAdminPanel() {
   }
 
   try {
-    await loadAdminGuessDeadlineConfig();
-
     await Promise.all([
       loadAdminMatches(),
       loadAdminRanking(),
       loadAdminGuesses(),
       loadAdminPredictions()
     ]);
+
+    await loadAdminGuessDeadlineConfig();
   } catch (error) {
     console.error(error);
     showAdminError("Erro ao acessar painel admin.");
@@ -155,8 +170,7 @@ function activateAdminTab(tab) {
   });
 
   if (tab === "matches") {
-    loadAdminGuessDeadlineConfig();
-    loadAdminMatches();
+    loadAdminMatches().then(() => loadAdminGuessDeadlineConfig());
   }
 
   if (tab === "ranking") loadAdminRanking();
@@ -197,6 +211,13 @@ async function adminUpdateMatch(matchId, payload) {
 async function adminDeleteMatch(matchId) {
   const client = getSupabaseClient();
 
+  const { error: deadlineError } = await client
+    .from("match_deadline_settings")
+    .delete()
+    .eq("match_id", matchId);
+
+  if (deadlineError) throw withRlsHint(deadlineError, "delete", "match_deadline_settings");
+
   const { error: guessesError } = await client
     .from("guesses")
     .delete()
@@ -216,34 +237,106 @@ async function adminDeleteMatch(matchId) {
    CONFIGURAÇÃO DO PRAZO DOS PALPITES
 ========================================================= */
 
-async function adminGetGuessDeadlineConfig() {
-  return getGuessDeadlineConfig();
-}
-
-async function adminSaveGuessDeadlineConfig(payload) {
-  return saveGuessDeadlineConfig(payload);
-}
-
 async function loadAdminGuessDeadlineConfig() {
   try {
-    adminState.guessDeadlineConfig = await adminGetGuessDeadlineConfig();
+    const [globalConfig, matchSettings] = await Promise.all([
+      getGuessDeadlineConfig(),
+      getMatchDeadlineSettingsMap()
+    ]);
+
+    adminState.guessDeadlineConfig = globalConfig;
+    adminState.matchDeadlineSettings = matchSettings;
   } catch (error) {
     console.error("Erro ao carregar configuração de prazo:", error);
     adminState.guessDeadlineConfig = DEFAULT_GUESS_DEADLINE_CONFIG;
+    adminState.matchDeadlineSettings = {};
     showAdminToast("Não foi possível carregar a regra dos palpites. Usando padrão.");
   }
 
+  fillDeadlineMatchSelect();
   renderGuessDeadlineConfigForm();
 }
 
+function fillDeadlineMatchSelect() {
+  const select = document.querySelector("#admin-deadline-match-id");
+  if (!select) return;
+
+  const currentValue = select.value;
+
+  select.innerHTML = '<option value="">Selecione um jogo</option>' + adminState.matches.map((match) => {
+    const hasSpecific = Boolean(adminState.matchDeadlineSettings?.[match.id]);
+    const label = `${match.home_team} x ${match.away_team} - ${match.phase || "Sem fase"} - ${formatAdminDate(match.match_date)}${hasSpecific ? " [regra específica]" : ""}`;
+
+    return `<option value="${escapeHtml(match.id)}">${escapeHtml(label)}</option>`;
+  }).join("");
+
+  if (currentValue && adminState.matches.some((match) => match.id === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+function getDeadlinePayloadFromForm(form) {
+  const formData = new FormData(form);
+
+  const mode = String(formData.get("mode") || "previous_day");
+  const amount = Number(formData.get("amount") || 1);
+  const unit = String(formData.get("unit") || "minutes");
+  const previousDayTime = String(formData.get("previousDayTime") || "23:59");
+
+  if (mode === "previous_day") {
+    return {
+      mode: "previous_day",
+      amount: 1,
+      unit: "day",
+      previousDayTime
+    };
+  }
+
+  return {
+    mode: "relative",
+    amount,
+    unit,
+    previousDayTime
+  };
+}
+
+function getSelectedDeadlineScope() {
+  return document.querySelector("#admin-deadline-scope")?.value || "global";
+}
+
+function getSelectedDeadlineMatchId() {
+  return document.querySelector("#admin-deadline-match-id")?.value || "";
+}
+
+function getCurrentDisplayedDeadlineConfig() {
+  const scope = getSelectedDeadlineScope();
+  const matchId = getSelectedDeadlineMatchId();
+
+  if (scope === "match" && matchId) {
+    return getGuessDeadlineConfigForMatch(
+      matchId,
+      adminState.guessDeadlineConfig,
+      adminState.matchDeadlineSettings
+    );
+  }
+
+  return normalizeGuessDeadlineConfig(adminState.guessDeadlineConfig);
+}
+
 function renderGuessDeadlineConfigForm() {
+  const scopeInput = document.querySelector("#admin-deadline-scope");
+  const matchInput = document.querySelector("#admin-deadline-match-id");
   const modeInput = document.querySelector("#admin-deadline-mode");
   const amountInput = document.querySelector("#admin-deadline-amount");
   const unitInput = document.querySelector("#admin-deadline-unit");
   const previousDayTimeInput = document.querySelector("#admin-deadline-previous-day-time");
   const currentText = document.querySelector("#admin-deadline-current");
 
-  const config = normalizeGuessDeadlineConfig(adminState.guessDeadlineConfig);
+  const scope = scopeInput?.value || "global";
+  const matchId = matchInput?.value || "";
+  const config = getCurrentDisplayedDeadlineConfig();
+  const selectedMatch = adminState.matches.find((match) => match.id === matchId);
+  const hasSpecific = Boolean(matchId && adminState.matchDeadlineSettings?.[matchId]);
 
   if (modeInput) modeInput.value = config.mode;
   if (amountInput) amountInput.value = config.amount || 1;
@@ -251,19 +344,43 @@ function renderGuessDeadlineConfigForm() {
   if (previousDayTimeInput) previousDayTimeInput.value = config.previousDayTime || "23:59";
 
   if (currentText) {
-    currentText.innerHTML = `Regra atual: <strong>${escapeHtml(getGuessDeadlineRuleText(config))}</strong>`;
+    if (scope === "match") {
+      const matchLabel = selectedMatch
+        ? `${selectedMatch.home_team} x ${selectedMatch.away_team}`
+        : "nenhum jogo selecionado";
+
+      const prefix = hasSpecific
+        ? `Regra específica de ${matchLabel}`
+        : `Este jogo está usando a regra geral`;
+
+      currentText.innerHTML = `${escapeHtml(prefix)}: <strong>${escapeHtml(getGuessDeadlineRuleText(config))}</strong>`;
+    } else {
+      currentText.innerHTML = `Regra geral atual: <strong>${escapeHtml(getGuessDeadlineRuleText(config))}</strong>`;
+    }
   }
 
   updateGuessDeadlineFormState();
 }
 
 function updateGuessDeadlineFormState() {
+  const scope = getSelectedDeadlineScope();
   const mode = document.querySelector("#admin-deadline-mode")?.value || "previous_day";
+
+  const matchInput = document.querySelector("#admin-deadline-match-id");
   const amountInput = document.querySelector("#admin-deadline-amount");
   const unitInput = document.querySelector("#admin-deadline-unit");
   const previousDayTimeInput = document.querySelector("#admin-deadline-previous-day-time");
+  const removeButton = document.querySelector("#admin-remove-match-deadline");
 
   const isPreviousDay = mode === "previous_day";
+  const isMatchScope = scope === "match";
+  const matchId = getSelectedDeadlineMatchId();
+  const hasSpecific = Boolean(matchId && adminState.matchDeadlineSettings?.[matchId]);
+
+  if (matchInput) {
+    matchInput.disabled = !isMatchScope;
+    matchInput.parentElement.style.opacity = isMatchScope ? "1" : "0.45";
+  }
 
   if (amountInput) {
     amountInput.disabled = isPreviousDay;
@@ -279,32 +396,28 @@ function updateGuessDeadlineFormState() {
     previousDayTimeInput.disabled = !isPreviousDay;
     previousDayTimeInput.parentElement.style.opacity = isPreviousDay ? "1" : "0.45";
   }
+
+  if (removeButton) {
+    removeButton.disabled = !isMatchScope || !matchId || !hasSpecific;
+    removeButton.style.opacity = !isMatchScope || !matchId || !hasSpecific ? "0.45" : "1";
+  }
+}
+
+function handleDeadlineScopeChange() {
+  renderGuessDeadlineConfigForm();
+}
+
+function handleDeadlineMatchChange() {
+  renderGuessDeadlineConfigForm();
 }
 
 async function handleSaveGuessDeadlineConfig(event) {
   event.preventDefault();
 
   const form = event.currentTarget;
-  const formData = new FormData(form);
-
-  const mode = String(formData.get("mode") || "previous_day");
-  const amount = Number(formData.get("amount") || 1);
-  const unit = String(formData.get("unit") || "minutes");
-  const previousDayTime = String(formData.get("previousDayTime") || "23:59");
-
-  const payload = mode === "previous_day"
-    ? {
-        mode: "previous_day",
-        amount: 1,
-        unit: "day",
-        previousDayTime
-      }
-    : {
-        mode: "relative",
-        amount,
-        unit,
-        previousDayTime
-      };
+  const scope = getSelectedDeadlineScope();
+  const matchId = getSelectedDeadlineMatchId();
+  const payload = getDeadlinePayloadFromForm(form);
 
   try {
     const button = form.querySelector('button[type="submit"]');
@@ -314,11 +427,19 @@ async function handleSaveGuessDeadlineConfig(event) {
       button.textContent = "Salvando...";
     }
 
-    adminState.guessDeadlineConfig = await adminSaveGuessDeadlineConfig(payload);
+    if (scope === "match") {
+      if (!matchId) {
+        throw new Error("Selecione um jogo específico para aplicar esta regra.");
+      }
 
-    renderGuessDeadlineConfigForm();
-    showAdminToast("Regra de prazo dos palpites atualizada.");
+      await saveMatchDeadlineConfig(matchId, payload);
+      showAdminToast("Regra específica do jogo atualizada.");
+    } else {
+      await saveGuessDeadlineConfig(payload);
+      showAdminToast("Regra geral dos palpites atualizada.");
+    }
 
+    await loadAdminGuessDeadlineConfig();
     await Promise.all([
       loadAdminMatches(),
       loadAdminGuesses()
@@ -333,6 +454,35 @@ async function handleSaveGuessDeadlineConfig(event) {
       button.disabled = false;
       button.textContent = "Salvar regra";
     }
+  }
+}
+
+async function handleRemoveMatchDeadlineConfig() {
+  const matchId = getSelectedDeadlineMatchId();
+
+  if (!matchId) {
+    showAdminToast("Selecione um jogo para remover a regra específica.");
+    return;
+  }
+
+  const match = adminState.matches.find((item) => item.id === matchId);
+  const title = match ? `${match.home_team} x ${match.away_team}` : "este jogo";
+
+  const confirmed = window.confirm(
+    `Remover a regra específica de ${title}?\n\nDepois disso, o jogo voltará a usar a regra geral.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await deleteMatchDeadlineConfig(matchId);
+
+    showAdminToast("Regra específica removida.");
+    await loadAdminGuessDeadlineConfig();
+    await loadAdminMatches();
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message || "Não foi possível remover a regra específica.");
   }
 }
 
@@ -954,9 +1104,22 @@ async function loadAdminMatches() {
     adminState.matches = await adminListMatches();
     renderAdminMatches();
     fillGuessMatchFilter();
+    fillDeadlineMatchSelect();
   } catch (error) {
     if (list) list.innerHTML = `<p class="empty">${escapeHtml(error.message)}</p>`;
   }
+}
+
+function getDeadlineConfigForAdminMatch(match) {
+  return getGuessDeadlineConfigForMatch(
+    match?.id,
+    adminState.guessDeadlineConfig,
+    adminState.matchDeadlineSettings
+  );
+}
+
+function hasSpecificDeadlineForAdminMatch(match) {
+  return Boolean(match?.id && adminState.matchDeadlineSettings?.[match.id]);
 }
 
 function renderAdminMatches() {
@@ -968,64 +1131,71 @@ function renderAdminMatches() {
     return;
   }
 
-  list.innerHTML = adminState.matches.map((match) => `
-    <form class="admin-match-card" data-match-id="${escapeHtml(match.id)}">
-      <div class="admin-match-card__header">
-        <strong>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</strong>
-        <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
-      </div>
+  list.innerHTML = adminState.matches.map((match) => {
+    const deadlineConfig = getDeadlineConfigForAdminMatch(match);
+    const hasSpecific = hasSpecificDeadlineForAdminMatch(match);
 
-      <div class="admin-match-card__meta">
-        <span>${formatAdminDate(match.match_date)}</span>
-        <span>${escapeHtml(match.phase || "Fase nao informada")}</span>
-        <span>${formatAdminScore(match)}</span>
-      </div>
+    return `
+      <form class="admin-match-card" data-match-id="${escapeHtml(match.id)}">
+        <div class="admin-match-card__header">
+          <strong>${escapeHtml(match.home_team)} x ${escapeHtml(match.away_team)}</strong>
+          <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
+        </div>
 
-      <div class="admin-form-grid">
-        <label>
-          Selecao A
-          <input name="home_team" value="${escapeHtml(match.home_team)}" required>
-        </label>
+        <div class="admin-match-card__meta">
+          <span>${formatAdminDate(match.match_date)}</span>
+          <span>${escapeHtml(match.phase || "Fase nao informada")}</span>
+          <span>${formatAdminScore(match)}</span>
+          <span>${hasSpecific ? "Regra específica" : "Regra geral"}: ${escapeHtml(getGuessDeadlineShortText(deadlineConfig))}</span>
+        </div>
 
-        <label>
-          Selecao B
-          <input name="away_team" value="${escapeHtml(match.away_team)}" required>
-        </label>
+        <div class="admin-form-grid">
+          <label>
+            Selecao A
+            <input name="home_team" value="${escapeHtml(match.home_team)}" required>
+          </label>
 
-        <label>
-          Data e hora
-          <input name="match_date" type="datetime-local" value="${formatDateTimeLocal(match.match_date)}" required>
-        </label>
+          <label>
+            Selecao B
+            <input name="away_team" value="${escapeHtml(match.away_team)}" required>
+          </label>
 
-        <label>
-          Fase
-          <input name="phase" value="${escapeHtml(match.phase || "")}">
-        </label>
+          <label>
+            Data e hora
+            <input name="match_date" type="datetime-local" value="${formatDateTimeLocal(match.match_date)}" required>
+          </label>
 
-        <label>
-          Status
-          <select name="status">
-            ${renderStatusOptions(match.status)}
-          </select>
-        </label>
+          <label>
+            Fase
+            <input name="phase" list="admin-phase-list" value="${escapeHtml(match.phase || "")}">
+          </label>
 
-        <label>
-          Placar A
-          <input name="home_score" type="number" min="0" value="${match.home_score ?? ""}">
-        </label>
+          <label>
+            Status
+            <select name="status">
+              ${renderStatusOptions(match.status)}
+            </select>
+          </label>
 
-        <label>
-          Placar B
-          <input name="away_score" type="number" min="0" value="${match.away_score ?? ""}">
-        </label>
-      </div>
+          <label>
+            Placar A
+            <input name="home_score" type="number" min="0" value="${match.home_score ?? ""}">
+          </label>
 
-      <div class="admin-match-card__actions">
-        <button type="submit">Salvar alterações</button>
-        <button class="admin-mini-danger" type="button" data-delete-match="${escapeHtml(match.id)}">Excluir jogo</button>
-      </div>
-    </form>
-  `).join("");
+          <label>
+            Placar B
+            <input name="away_score" type="number" min="0" value="${match.away_score ?? ""}">
+          </label>
+        </div>
+
+        <div class="admin-match-card__actions">
+          <button type="submit">Salvar alterações</button>
+          <button class="button-secondary" type="button" data-select-deadline-match="${escapeHtml(match.id)}">Configurar prazo deste jogo</button>
+          <button class="admin-mini-danger" type="button" data-delete-match="${escapeHtml(match.id)}">Excluir jogo</button>
+        </div>
+      </form>
+    `;
+  }).join("");
 
   list.querySelectorAll(".admin-match-card").forEach((form) => {
     form.addEventListener("submit", handleUpdateMatch);
@@ -1033,6 +1203,23 @@ function renderAdminMatches() {
 
   list.querySelectorAll("[data-delete-match]").forEach((button) => {
     button.addEventListener("click", handleDeleteMatch);
+  });
+
+  list.querySelectorAll("[data-select-deadline-match]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const scope = document.querySelector("#admin-deadline-scope");
+      const matchSelect = document.querySelector("#admin-deadline-match-id");
+
+      if (scope) scope.value = "match";
+      if (matchSelect) matchSelect.value = button.dataset.selectDeadlineMatch || "";
+
+      renderGuessDeadlineConfigForm();
+
+      document.querySelector(".admin-deadline-panel")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    });
   });
 }
 
@@ -1056,7 +1243,9 @@ async function handleCreateMatch(event) {
     form.reset();
     form.elements.status.value = "aberto";
     showAdminToast("Jogo cadastrado.");
+
     await loadAdminMatches();
+    await loadAdminGuessDeadlineConfig();
   } catch (error) {
     showAdminToast(error.message);
   }
@@ -1076,6 +1265,7 @@ async function handleUpdateMatch(event) {
 
     showAdminToast("Resultado atualizado.");
     await Promise.all([loadAdminMatches(), loadAdminRanking(), loadAdminGuesses()]);
+    await loadAdminGuessDeadlineConfig();
   } catch (error) {
     showAdminToast(error.message);
   }
@@ -1088,7 +1278,7 @@ async function handleDeleteMatch(event) {
   const title = form?.querySelector(".admin-match-card__header strong")?.textContent || "este jogo";
 
   const confirmed = window.confirm(
-    `Tem certeza que deseja excluir ${title}?\n\nIsso também remove os palpites desse jogo e não pode ser desfeito.`
+    `Tem certeza que deseja excluir ${title}?\n\nIsso também remove os palpites e regras específicas desse jogo. Essa ação não pode ser desfeita.`
   );
 
   if (!confirmed) return;
@@ -1101,6 +1291,7 @@ async function handleDeleteMatch(event) {
 
     showAdminToast("Jogo excluído.");
     await Promise.all([loadAdminMatches(), loadAdminRanking(), loadAdminGuesses()]);
+    await loadAdminGuessDeadlineConfig();
   } catch (error) {
     button.disabled = false;
     button.textContent = "Excluir jogo";
@@ -1626,7 +1817,7 @@ function withRlsHint(error, action, table) {
 
   if (!isRls) return error;
 
-  return new Error(`${message} Crie uma policy de ${action} para a tabela ${table}. Veja supabase/update_admin_policies.sql.`);
+  return new Error(`${message} Crie uma policy de ${action} para a tabela ${table}.`);
 }
 
 function showAdminToast(message) {

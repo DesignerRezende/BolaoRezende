@@ -14,7 +14,8 @@ const state = {
   selectedTopScorerPlayerId: null,
   matchFilter: "todos",
   openPhase: "",
-  guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG
+  guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG,
+  matchDeadlineSettings: {}
 };
 
 const PHASE_SECTIONS = [
@@ -30,6 +31,9 @@ const PHASE_SECTIONS = [
   "Grupo J",
   "Grupo K",
   "Grupo L",
+  "Amistoso",
+  "Teste",
+  "Outros",
   "Fase de 32",
   "Oitavas de final",
   "Quartas de final",
@@ -308,10 +312,17 @@ async function loadCupPredictionData() {
 
 async function loadGuessDeadlineConfig() {
   try {
-    state.guessDeadlineConfig = await getGuessDeadlineConfig();
+    const [globalConfig, matchSettings] = await Promise.all([
+      getGuessDeadlineConfig(),
+      getMatchDeadlineSettingsMap()
+    ]);
+
+    state.guessDeadlineConfig = globalConfig;
+    state.matchDeadlineSettings = matchSettings;
   } catch (error) {
     console.error("Erro ao carregar prazo dos palpites:", error);
     state.guessDeadlineConfig = DEFAULT_GUESS_DEADLINE_CONFIG;
+    state.matchDeadlineSettings = {};
   }
 
   updateRuleDeadlineText();
@@ -320,6 +331,7 @@ async function loadGuessDeadlineConfig() {
 async function loadDashboard() {
   try {
     state.openPhase = "";
+
     await loadGuessDeadlineConfig();
 
     state.matches = await listMatches();
@@ -364,7 +376,7 @@ function updateRuleDeadlineText() {
 
     if (isOldDeadlineText || isDynamicDeadlineText) {
       element.dataset.deadlineRule = "true";
-      element.innerHTML = ruleText.replace(/(\d{2}:\d{2}|\\d+\\s\\w+)/, "<strong>$1</strong>");
+      element.innerHTML = escapeHtml(ruleText);
     }
   });
 }
@@ -387,6 +399,7 @@ function renderLiveBox() {
   const closeTime = getGuessCloseDate(match);
   const homeTeam = findWorldCupTeamByName(match.home_team);
   const awayTeam = findWorldCupTeamByName(match.away_team);
+  const deadlineConfig = getDeadlineConfigForMatch(match);
 
   liveBox.innerHTML = `
     <div class="next-match-card">
@@ -414,12 +427,26 @@ function renderLiveBox() {
       <span class="countdown-sub">
         ${closed ? "Os palpites deste jogo já foram fechados." : `Palpites abertos até ${formatDateSentence(closeTime)}`}
       </span>
+      <span class="countdown-sub">${escapeHtml(getGuessDeadlineRuleText(deadlineConfig))}</span>
     </div>
 
     <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
     <p>${formatDate(match.match_date)} · ${escapeHtml(match.phase || "Fase não informada")}</p>
     <p><strong>${state.guessCounts[match.id] || 0}</strong> palpites registrados</p>
   `;
+}
+
+function getOrderedPhaseSections(matchesByPhase) {
+  const existing = Object.keys(matchesByPhase || {});
+  const ordered = [...PHASE_SECTIONS];
+
+  existing.forEach((phaseName) => {
+    if (!ordered.includes(phaseName)) {
+      ordered.push(phaseName);
+    }
+  });
+
+  return ordered;
 }
 
 function renderMatches(options = {}) {
@@ -432,8 +459,9 @@ function renderMatches(options = {}) {
 
   const filteredMatches = getFilteredMatches();
   const matchesByPhase = groupMatchesByPhase(filteredMatches);
+  const orderedPhases = getOrderedPhaseSections(matchesByPhase);
 
-  matchesList.innerHTML = PHASE_SECTIONS.map((phaseName) => {
+  matchesList.innerHTML = orderedPhases.map((phaseName) => {
     const phaseMatches = matchesByPhase[phaseName] || [];
     const isOpen = state.openPhase === phaseName;
     const isKnockout = KNOCKOUT_PHASES.includes(phaseName);
@@ -451,7 +479,7 @@ function renderMatches(options = {}) {
           aria-expanded="${isOpen ? "true" : "false"}"
         >
           <span class="phase-accordion__title">
-            ${isLocked ? "🔒" : "⚽"} ${escapeHtml(phaseName)}
+            ${isLocked ? "🔒" : getPhaseIcon(phaseName)} ${escapeHtml(phaseName)}
           </span>
 
           <span class="phase-accordion__meta">
@@ -506,6 +534,16 @@ function renderMatches(options = {}) {
   }
 }
 
+function getPhaseIcon(phaseName) {
+  const normalized = normalizeText(phaseName);
+
+  if (normalized.includes("amistoso")) return "🤝";
+  if (normalized.includes("teste")) return "🧪";
+  if (normalized.includes("outro")) return "📌";
+
+  return "⚽";
+}
+
 function scrollPhaseAccordionIntoView(phaseName) {
   if (!phaseName) return;
 
@@ -542,6 +580,18 @@ function cssEscape(value) {
   return String(value).replace(/"/g, '\\"');
 }
 
+function getDeadlineConfigForMatch(match) {
+  return getGuessDeadlineConfigForMatch(
+    match?.id,
+    state.guessDeadlineConfig,
+    state.matchDeadlineSettings
+  );
+}
+
+function hasSpecificDeadlineForMatch(match) {
+  return Boolean(match?.id && state.matchDeadlineSettings && state.matchDeadlineSettings[match.id]);
+}
+
 function renderMatchCard(match) {
   const locked = isGuessClosed(match);
   const savedGuess = state.guesses.find((guess) => guess.match_id === match.id);
@@ -553,12 +603,16 @@ function renderMatchCard(match) {
   const guessAction = getGuessAction(savedGuess);
   const homeTeam = findWorldCupTeamByName(match.home_team);
   const awayTeam = findWorldCupTeamByName(match.away_team);
+  const specificDeadline = hasSpecificDeadlineForMatch(match);
 
   return `
     <article class="match-card" data-locked="${locked}">
       <div class="match-header">
         <div>
-          <div class="match-meta">${escapeHtml(match.phase || "Fase não informada")}</div>
+          <div class="match-meta">
+            ${escapeHtml(match.phase || "Fase não informada")}
+            ${specificDeadline ? " · regra específica" : ""}
+          </div>
           <div class="match-timer" data-countdown-match-id="${match.id}">${getCountdownText(match)}</div>
           <div class="match-countdown">
             ${locked ? "Palpites encerrados" : `Palpites abertos até ${formatDateSentence(closeTime)}`}
@@ -635,6 +689,9 @@ function normalizePhaseName(phase) {
     return `Grupo ${groupMatch[1].toUpperCase()}`;
   }
 
+  if (normalized.includes("amistoso")) return "Amistoso";
+  if (normalized.includes("teste")) return "Teste";
+  if (normalized.includes("outro")) return "Outros";
   if (normalized.includes("32")) return "Fase de 32";
   if (normalized.includes("oitavas")) return "Oitavas de final";
   if (normalized.includes("quartas")) return "Quartas de final";
@@ -970,7 +1027,7 @@ function isGuessClosed(match) {
 }
 
 function getGuessCloseDate(match) {
-  return calculateGuessCloseDate(match, state.guessDeadlineConfig);
+  return calculateGuessCloseDate(match, getDeadlineConfigForMatch(match));
 }
 
 function startCountdowns() {

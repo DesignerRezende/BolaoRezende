@@ -268,7 +268,7 @@
 
     .admin-deadline-form {
       display: grid !important;
-      grid-template-columns: minmax(240px, 1.3fr) 140px 160px 160px auto !important;
+      grid-template-columns: 220px minmax(260px, 1.4fr) 130px 150px 160px auto auto !important;
       gap: 14px !important;
       align-items: end !important;
       width: 100% !important;
@@ -300,6 +300,35 @@
 
     .admin-deadline-current strong {
       color: #ffdf00 !important;
+    }
+
+    .admin-deadline-help {
+      margin-top: 8px !important;
+      color: rgba(255, 255, 255, 0.52) !important;
+      font-size: 0.78rem !important;
+      font-weight: 700 !important;
+      line-height: 1.4 !important;
+    }
+
+    .admin-phase-options {
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 8px !important;
+      margin-top: 8px !important;
+    }
+
+    .admin-phase-options button {
+      min-height: 34px !important;
+      padding: 7px 8px !important;
+      font-size: 0.68rem !important;
+      border-radius: 10px !important;
+      white-space: nowrap !important;
+    }
+
+    @media (max-width: 1500px) {
+      .admin-deadline-form {
+        grid-template-columns: 1fr 1fr 1fr !important;
+      }
     }
 
     @media (max-width: 1300px) {
@@ -352,6 +381,10 @@
       }
 
       .admin-deadline-form {
+        grid-template-columns: 1fr !important;
+      }
+
+      .admin-phase-options {
         grid-template-columns: 1fr !important;
       }
     }
@@ -419,10 +452,25 @@
 
           <form id="admin-guess-deadline-form" class="admin-deadline-form">
             <label>
-              Tipo de encerramento
+              Aplicar em
+              <select id="admin-deadline-scope" name="scope">
+                <option value="global">Todos os jogos</option>
+                <option value="match">Jogo específico</option>
+              </select>
+            </label>
+
+            <label>
+              Jogo específico
+              <select id="admin-deadline-match-id" name="match_id">
+                <option value="">Selecione um jogo</option>
+              </select>
+            </label>
+
+            <label>
+              Tipo
               <select id="admin-deadline-mode" name="mode">
-                <option value="previous_day">Dia anterior em horário específico</option>
-                <option value="relative">Antes do horário do jogo</option>
+                <option value="previous_day">Dia anterior</option>
+                <option value="relative">Antes do jogo</option>
               </select>
             </label>
 
@@ -434,21 +482,29 @@
             <label>
               Unidade
               <select id="admin-deadline-unit" name="unit">
-                <option value="minutes">Minutos antes</option>
-                <option value="hours">Horas antes</option>
+                <option value="minutes">Minutos</option>
+                <option value="hours">Horas</option>
               </select>
             </label>
 
             <label>
-              Horário do dia anterior
+              Horário dia anterior
               <input id="admin-deadline-previous-day-time" name="previousDayTime" type="time" value="23:59">
             </label>
 
             <button type="submit">Salvar regra</button>
+
+            <button id="admin-remove-match-deadline" class="button-secondary" type="button">
+              Remover regra do jogo
+            </button>
           </form>
 
           <p id="admin-deadline-current" class="admin-deadline-current">
             Regra atual: <strong>carregando...</strong>
+          </p>
+
+          <p class="admin-deadline-help">
+            Se escolher “Jogo específico”, a regra salva vale somente para aquela partida. Se não houver regra específica, o jogo usa a regra geral.
           </p>
         </article>
 
@@ -480,7 +536,7 @@
 
               <label>
                 Selecao B
-                <input name="away_team" type="text" required placeholder="Adversario">
+                <input name="away_team" type="text" required placeholder="Panamá">
               </label>
 
               <label>
@@ -489,9 +545,39 @@
               </label>
 
               <label>
-                Fase
-                <input name="phase" type="text" placeholder="Oitavas de final">
+                Fase / Tipo
+                <input name="phase" type="text" list="admin-phase-list" placeholder="Amistoso">
               </label>
+
+              <datalist id="admin-phase-list">
+                <option value="Amistoso"></option>
+                <option value="Teste"></option>
+                <option value="Outros"></option>
+                <option value="Grupo A"></option>
+                <option value="Grupo B"></option>
+                <option value="Grupo C"></option>
+                <option value="Grupo D"></option>
+                <option value="Grupo E"></option>
+                <option value="Grupo F"></option>
+                <option value="Grupo G"></option>
+                <option value="Grupo H"></option>
+                <option value="Grupo I"></option>
+                <option value="Grupo J"></option>
+                <option value="Grupo K"></option>
+                <option value="Grupo L"></option>
+                <option value="Fase de 32"></option>
+                <option value="Oitavas de final"></option>
+                <option value="Quartas de final"></option>
+                <option value="Semifinal"></option>
+                <option value="Disputa de 3º lugar"></option>
+                <option value="Final"></option>
+              </datalist>
+
+              <div class="admin-phase-options">
+                <button type="button" data-fill-phase="Amistoso">Amistoso</button>
+                <button type="button" data-fill-phase="Teste">Teste</button>
+                <button type="button" data-fill-phase="Outros">Outros</button>
+              </div>
 
               <label>
                 Status

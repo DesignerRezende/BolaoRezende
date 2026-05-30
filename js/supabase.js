@@ -189,8 +189,7 @@ async function registerGuess(guess) {
 }
 
 /* =========================================================
-   CONFIGURAÇÃO DO PRAZO DOS PALPITES
-   app_settings.key = guess_deadline_config
+   CONFIGURAÇÃO GLOBAL E POR JOGO DO PRAZO DOS PALPITES
 ========================================================= */
 
 function normalizeGuessDeadlineConfig(config) {
@@ -261,6 +260,85 @@ async function saveGuessDeadlineConfig(config) {
   if (error) throw error;
 
   return normalizeGuessDeadlineConfig(data?.value || normalizedConfig);
+}
+
+async function listMatchDeadlineSettings() {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("match_deadline_settings")
+    .select("*");
+
+  if (error) throw error;
+
+  return (data || []).map((row) => ({
+    ...row,
+    value: normalizeGuessDeadlineConfig(row.value)
+  }));
+}
+
+async function getMatchDeadlineSettingsMap() {
+  const rows = await listMatchDeadlineSettings();
+  const map = {};
+
+  rows.forEach((row) => {
+    if (row.match_id) {
+      map[row.match_id] = normalizeGuessDeadlineConfig(row.value);
+    }
+  });
+
+  return map;
+}
+
+async function saveMatchDeadlineConfig(matchId, config) {
+  if (!matchId) {
+    throw new Error("Selecione um jogo para salvar a regra específica.");
+  }
+
+  const client = getSupabaseClient();
+  const normalizedConfig = normalizeGuessDeadlineConfig(config);
+
+  const { data, error } = await client
+    .from("match_deadline_settings")
+    .upsert({
+      match_id: matchId,
+      value: normalizedConfig,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "match_id" })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    ...data,
+    value: normalizeGuessDeadlineConfig(data?.value || normalizedConfig)
+  };
+}
+
+async function deleteMatchDeadlineConfig(matchId) {
+  if (!matchId) {
+    throw new Error("Selecione um jogo para remover a regra específica.");
+  }
+
+  const client = getSupabaseClient();
+
+  const { error } = await client
+    .from("match_deadline_settings")
+    .delete()
+    .eq("match_id", matchId);
+
+  if (error) throw error;
+
+  return true;
+}
+
+function getGuessDeadlineConfigForMatch(matchId, globalConfig, matchDeadlineSettings = {}) {
+  if (matchId && matchDeadlineSettings && matchDeadlineSettings[matchId]) {
+    return normalizeGuessDeadlineConfig(matchDeadlineSettings[matchId]);
+  }
+
+  return normalizeGuessDeadlineConfig(globalConfig || DEFAULT_GUESS_DEADLINE_CONFIG);
 }
 
 function calculateGuessCloseDate(match, config) {
