@@ -18,7 +18,7 @@ const state = {
   matchDeadlineSettings: {}
 };
 
-const PHASE_SECTIONS = [
+const CUP_PHASE_SECTIONS = [
   "Grupo A",
   "Grupo B",
   "Grupo C",
@@ -31,15 +31,23 @@ const PHASE_SECTIONS = [
   "Grupo J",
   "Grupo K",
   "Grupo L",
-  "Amistoso",
-  "Teste",
-  "Outros",
   "Fase de 32",
   "Oitavas de final",
   "Quartas de final",
   "Semifinal",
   "Disputa de 3º lugar",
   "Final"
+];
+
+const DYNAMIC_PHASE_SECTIONS = [
+  "Amistoso",
+  "Teste",
+  "Outros"
+];
+
+const PHASE_SECTIONS = [
+  ...CUP_PHASE_SECTIONS,
+  ...DYNAMIC_PHASE_SECTIONS
 ];
 
 const KNOCKOUT_PHASES = [
@@ -438,7 +446,13 @@ function renderLiveBox() {
 
 function getOrderedPhaseSections(matchesByPhase) {
   const existing = Object.keys(matchesByPhase || {});
-  const ordered = [...PHASE_SECTIONS];
+  const ordered = [...CUP_PHASE_SECTIONS];
+
+  DYNAMIC_PHASE_SECTIONS.forEach((phaseName) => {
+    if (existing.includes(phaseName)) {
+      ordered.push(phaseName);
+    }
+  });
 
   existing.forEach((phaseName) => {
     if (!ordered.includes(phaseName)) {
@@ -466,6 +480,12 @@ function renderMatches(options = {}) {
     const isOpen = state.openPhase === phaseName;
     const isKnockout = KNOCKOUT_PHASES.includes(phaseName);
     const isLocked = isKnockout && phaseMatches.length === 0;
+    const isDynamicPhase = DYNAMIC_PHASE_SECTIONS.includes(phaseName);
+    const isCustomPhase = !CUP_PHASE_SECTIONS.includes(phaseName) && !DYNAMIC_PHASE_SECTIONS.includes(phaseName);
+
+    if ((isDynamicPhase || isCustomPhase) && phaseMatches.length === 0) {
+      return "";
+    }
 
     return `
       <section
