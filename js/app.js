@@ -88,7 +88,11 @@ if (participantForm) {
 }
 
 if (refreshButton) {
-  refreshButton.addEventListener("click", loadDashboard);
+  refreshButton.addEventListener("click", () => {
+    loadDashboard({
+      preserveView: true
+    });
+  });
 }
 
 document.querySelectorAll("[data-match-filter]").forEach((button) => {
@@ -340,10 +344,17 @@ async function loadGuessDeadlineConfig() {
   updateRuleDeadlineText();
 }
 
-async function loadDashboard() {
+async function loadDashboard(options = {}) {
+  const preserveView = Boolean(options.preserveView);
+  const previousScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const previousOpenPhase = state.openPhase;
+  const previousFocusMatchId = state.focusMatchId;
+
   try {
-    state.openPhase = "";
-    state.focusMatchId = null;
+    if (!preserveView) {
+      state.openPhase = "";
+      state.focusMatchId = null;
+    }
 
     await loadGuessDeadlineConfig();
 
@@ -353,6 +364,11 @@ async function loadDashboard() {
 
     await loadCupPredictionData();
 
+    if (preserveView) {
+      state.openPhase = previousOpenPhase;
+      state.focusMatchId = previousFocusMatchId;
+    }
+
     showCurrentParticipant();
     renderLiveBox();
     renderMatches();
@@ -360,6 +376,10 @@ async function loadDashboard() {
     startCountdowns();
     await renderRanking();
     maybeOpenPredictionModal();
+
+    if (preserveView) {
+      restoreScrollPosition(previousScrollY);
+    }
   } catch (error) {
     console.error("Erro ao carregar dashboard:", error);
 
@@ -370,7 +390,80 @@ async function loadDashboard() {
     if (liveBox) {
       liveBox.textContent = "Erro ao carregar jogos.";
     }
+
+    if (preserveView) {
+      restoreScrollPosition(previousScrollY);
+    }
   }
+}
+
+async function refreshAfterGuess(matchId) {
+  const previousScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  const matchBeforeRefresh = state.matches.find((item) => String(item.id) === String(matchId));
+  const phaseName = normalizePhaseName(matchBeforeRefresh?.phase || "");
+
+  try {
+    await loadGuessDeadlineConfig();
+
+    const [matches, guessCounts, guesses] = await Promise.all([
+      listMatches(),
+      getGuessCounts(),
+      listParticipantGuesses(state.participant?.id)
+    ]);
+
+    state.matches = matches;
+    state.guessCounts = guessCounts;
+    state.guesses = guesses;
+
+    const refreshedMatch = state.matches.find((item) => String(item.id) === String(matchId));
+    state.openPhase = normalizePhaseName(refreshedMatch?.phase || phaseName);
+    state.focusMatchId = matchId;
+
+    renderLiveBox();
+    renderMatches();
+    renderTodayGames();
+    startCountdowns();
+    await renderRanking();
+
+    restoreScrollPosition(previousScrollY);
+
+    window.setTimeout(() => {
+      highlightMatchCard(matchId);
+    }, 120);
+  } catch (error) {
+    console.error("Erro ao atualizar palpite na tela:", error);
+    showToast("Palpite salvo, mas não consegui atualizar a tela automaticamente.");
+    restoreScrollPosition(previousScrollY);
+  }
+}
+
+function restoreScrollPosition(scrollY) {
+  window.requestAnimationFrame(() => {
+    window.scrollTo({
+      top: scrollY,
+      left: 0,
+      behavior: "auto"
+    });
+  });
+}
+
+function highlightMatchCard(matchId) {
+  ensureMatchFocusStyles();
+
+  const selector = `[data-match-id-card="${cssEscape(matchId)}"]`;
+  const card = document.querySelector(selector);
+
+  if (!card) return;
+
+  card.classList.add("is-focused");
+
+  window.setTimeout(() => {
+    card.classList.remove("is-focused");
+
+    if (String(state.focusMatchId) === String(matchId)) {
+      state.focusMatchId = null;
+    }
+  }, 3200);
 }
 
 function updateRuleDeadlineText() {
@@ -1081,7 +1174,7 @@ async function handleGuessSubmit(event) {
   }
 
   const form = event.currentTarget;
-  const match = state.matches.find((item) => item.id === form.dataset.matchId);
+  const match = state.matches.find((item) => String(item.id) === String(form.dataset.matchId));
 
   if (!match) {
     showToast("Jogo não encontrado.");
@@ -1090,30 +1183,44 @@ async function handleGuessSubmit(event) {
 
   if (isGuessClosed(match)) {
     showToast(`O prazo para este palpite encerrou em ${formatDateSentence(getGuessCloseDate(match))}.`);
-    await loadDashboard();
     return;
   }
 
   const formData = new FormData(form);
+  const homeScore = formData.get("home_score_guess");
+  const awayScore = formData.get("away_score_guess");
   const button = form.querySelector("button");
 
+  if (homeScore === "" || awayScore === "") {
+    showToast("Preencha os dois placares antes de salvar.");
+    return;
+  }
+
   try {
-    if (button) button.disabled = true;
+    if (button) {
+      button.disabled = true;
+      button.dataset.originalText = button.textContent;
+      button.textContent = "Salvando...";
+    }
 
     await registerGuess({
       participant_id: state.participant.id,
       match_id: match.id,
-      home_score_guess: formData.get("home_score_guess"),
-      away_score_guess: formData.get("away_score_guess")
+      home_score_guess: homeScore,
+      away_score_guess: awayScore
     });
 
     showToast("Palpite salvo.");
-    await loadDashboard();
+    await refreshAfterGuess(match.id);
   } catch (error) {
     console.error("Erro ao salvar palpite:", error);
-    showToast("Não foi possível salvar o palpite.");
+    showToast(error.message || "Não foi possível salvar o palpite.");
   } finally {
-    if (button && !isGuessClosed(match)) button.disabled = false;
+    if (button) {
+      button.disabled = false;
+      button.textContent = button.dataset.originalText || "Salvar palpite";
+      delete button.dataset.originalText;
+    }
   }
 }
 
