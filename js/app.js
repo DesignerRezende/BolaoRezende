@@ -501,9 +501,25 @@ function renderLiveBox() {
   }
 
   const now = new Date();
-  const liveMatch = state.matches.find((match) => match.status === "ao vivo");
-  const nextMatch = state.matches.find((match) => match.status !== "encerrado" && new Date(match.match_date) >= now);
-  const match = liveMatch || nextMatch || state.matches[state.matches.length - 1];
+  const orderedMatches = [...state.matches].sort((a, b) => new Date(a.match_date) - new Date(b.match_date));
+
+  const liveMatches = orderedMatches.filter((match) => String(match.status || "").toLowerCase() === "ao vivo");
+
+  let highlightMatches = liveMatches;
+
+  if (!highlightMatches.length) {
+    const futureMatches = orderedMatches.filter((match) => {
+      const status = String(match.status || "aberto").toLowerCase();
+      return status !== "encerrado" && new Date(match.match_date) >= now;
+    });
+
+    if (futureMatches.length) {
+      const nextTime = new Date(futureMatches[0].match_date).getTime();
+      highlightMatches = futureMatches.filter((match) => new Date(match.match_date).getTime() === nextTime);
+    }
+  }
+
+  const match = highlightMatches[0] || orderedMatches[orderedMatches.length - 1];
 
   const closed = isGuessClosed(match);
   const countdown = getCountdownText(match);
@@ -808,38 +824,27 @@ function renderMatchCard(match) {
   const focused = String(state.focusMatchId) === String(match.id);
 
   const matchStatus = String(match.status || "").toLowerCase();
-
-  const hasScore =
+  const hasRealScore =
+    matchStatus === "encerrado" &&
     match.home_score !== null &&
     match.home_score !== undefined &&
     match.away_score !== null &&
     match.away_score !== undefined;
 
-  const shouldShowRealScore =
-    hasScore &&
-    (matchStatus === "ao vivo" || matchStatus === "encerrado");
-
-  const realScoreLabel = matchStatus === "ao vivo" ? "Placar ao vivo" : "Placar final";
-
-  const realScoreSubtext =
-    matchStatus === "ao vivo"
-      ? "Resultado parcial atualizado pela integração."
-      : "Resultado oficial do jogo.";
-
-  const realScoreHtml = shouldShowRealScore
+  const realScoreHtml = hasRealScore
     ? `
       <div class="saved-guess saved-guess--result">
-        <strong>${realScoreLabel}: ${escapeHtml(match.home_team)} ${Number(match.home_score)} x ${Number(match.away_score)} ${escapeHtml(match.away_team)}</strong>
-        <span>${realScoreSubtext}</span>
+        <strong>Placar real: ${escapeHtml(match.home_team)} ${Number(match.home_score)} x ${Number(match.away_score)} ${escapeHtml(match.away_team)}</strong>
+        <span>Resultado oficial do jogo.</span>
       </div>
     `
     : "";
 
-  const guessPointsHtml = matchStatus === "encerrado" && hasScore && savedGuess
+  const guessPointsHtml = hasRealScore && savedGuess
     ? `
       <div class="saved-guess saved-guess--points">
         <strong>${getPointsTextForGuess(savedGuess, match)}</strong>
-        <span>Calculado com base no placar final.</span>
+        <span>Calculado com base no placar real.</span>
       </div>
     `
     : "";

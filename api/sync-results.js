@@ -205,7 +205,9 @@ function buildMatchUpdatePayload(localMatch, apiMatch) {
     return payload;
   }
 
-  if (String(localMatch.status || "").toLowerCase() !== "encerrado") {
+  const manualStatus = String(localMatch.status || "").toLowerCase();
+
+  if (!["ao vivo", "encerrado"].includes(manualStatus)) {
     payload.status = "aberto";
   }
 
