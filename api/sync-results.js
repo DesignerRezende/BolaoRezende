@@ -107,6 +107,13 @@ async function supabaseRequest(path, options = {}) {
   return data;
 }
 
+async function supabaseRpc(functionName, body = {}) {
+  return supabaseRequest(`rpc/${functionName}`, {
+    method: "POST",
+    body: JSON.stringify(body)
+  });
+}
+
 function getIsoWithoutMilliseconds(date) {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
@@ -128,8 +135,7 @@ async function getMatchesToSync(syncAll) {
   ];
 
   if (!syncAll) {
-    query.push(`match_date=gte.${encodeURIComponent(startIso)}`);
-    query.push(`match_date=lte.${encodeURIComponent(endIso)}`);
+    query.push("status=neq.encerrado");
   }
 
   return supabaseRequest(`matches?${query.join("&")}`, {
@@ -526,7 +532,8 @@ export default async function handler(req, res) {
       updated: 0,
       skipped: 0,
       errors: [],
-      details: []
+      details: [],
+      recalculated: false
     };
 
     for (const match of matches || []) {
@@ -590,6 +597,18 @@ export default async function handler(req, res) {
           match_id: match.id,
           fixture_id: match.api_football_fixture_id,
           local_match: `${match.home_team} x ${match.away_team}`,
+          error: error.message
+        });
+      }
+    }
+
+    if (!dryRun) {
+      try {
+        await supabaseRpc("recalculate_bolao_points");
+        result.recalculated = true;
+      } catch (error) {
+        result.errors.push({
+          stage: "recalculate_bolao_points",
           error: error.message
         });
       }
