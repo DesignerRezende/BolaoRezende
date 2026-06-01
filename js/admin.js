@@ -1,5 +1,6 @@
 const ADMIN_PASSWORD = "rezende@2026!";
 const ADMIN_STORAGE_KEY = "bolao_rezende_admin";
+const ADMIN_SYNC_SECRET_STORAGE_KEY = "bolao_rezende_sync_secret";
 
 const adminState = {
   matches: [],
@@ -51,6 +52,7 @@ function bindAdminEvents() {
     await loadAdminMatches();
     await loadAdminGuessDeadlineConfig();
   });
+  document.querySelector("#admin-sync-football-api")?.addEventListener("click", handleAdminSyncFootballApi);
 
   document.querySelector("#admin-create-match-form")?.addEventListener("submit", handleCreateMatch);
   document.querySelector("#admin-refresh-ranking")?.addEventListener("click", loadAdminRanking);
@@ -231,6 +233,68 @@ async function adminDeleteMatch(matchId) {
     .eq("id", matchId);
 
   if (matchError) throw withRlsHint(matchError, "delete", "matches");
+}
+
+async function runAdminFootballApiSync() {
+  let secret = localStorage.getItem(ADMIN_SYNC_SECRET_STORAGE_KEY) || "";
+
+  if (!secret) {
+    secret = window.prompt("Informe o segredo SYNC_RESULTS_SECRET para sincronizar a Football API:") || "";
+    secret = secret.trim();
+
+    if (!secret) {
+      throw new Error("Sincronizacao cancelada: segredo nao informado.");
+    }
+
+    localStorage.setItem(ADMIN_SYNC_SECRET_STORAGE_KEY, secret);
+  }
+
+  const response = await fetch(`/api/sync-results?all=1&secret=${encodeURIComponent(secret)}`);
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || !data?.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem(ADMIN_SYNC_SECRET_STORAGE_KEY);
+    }
+
+    throw new Error(data?.error || "Nao foi possivel sincronizar a Football API.");
+  }
+
+  return data;
+}
+
+async function handleAdminSyncFootballApi(event) {
+  const button = event.currentTarget;
+  const originalText = button?.textContent || "Sincronizar Football API";
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Sincronizando...";
+    }
+
+    const result = await runAdminFootballApiSync();
+    const errorCount = Array.isArray(result.errors) ? result.errors.length : 0;
+
+    showAdminToast(
+      `Sync concluido: ${result.checked || 0} verificados, ${result.updated || 0} com mudança, ${result.skipped || 0} sem alteração, ${errorCount} erros.`
+    );
+
+    await Promise.all([
+      loadAdminMatches(),
+      loadAdminRanking(),
+      loadAdminGuesses()
+    ]);
+    await loadAdminGuessDeadlineConfig();
+  } catch (error) {
+    console.error(error);
+    showAdminToast(error.message || "Nao foi possivel sincronizar a Football API.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 /* =========================================================
@@ -1146,6 +1210,7 @@ function renderAdminMatches() {
           <span>${formatAdminDate(match.match_date)}</span>
           <span>${escapeHtml(match.phase || "Fase nao informada")}</span>
           <span>${formatAdminScore(match)}</span>
+          <span>ID API: ${escapeHtml(match.api_football_fixture_id || "-")}</span>
           <span>${hasSpecific ? "Regra específica" : "Regra geral"}: ${escapeHtml(getGuessDeadlineShortText(deadlineConfig))}</span>
         </div>
 
@@ -1185,6 +1250,11 @@ function renderAdminMatches() {
           <label>
             Placar B
             <input name="away_score" type="number" min="0" value="${match.away_score ?? ""}">
+          </label>
+
+          <label>
+            ID Football API
+            <input name="api_football_fixture_id" type="number" min="0" step="1" value="${match.api_football_fixture_id ?? ""}">
           </label>
         </div>
 
@@ -1237,7 +1307,8 @@ async function handleCreateMatch(event) {
       phase: String(formData.get("phase") || "").trim() || null,
       status: String(formData.get("status") || "aberto"),
       home_score: null,
-      away_score: null
+      away_score: null,
+      api_football_fixture_id: normalizeNullableNumber(formData.get("api_football_fixture_id"))
     });
 
     form.reset();
@@ -1326,7 +1397,8 @@ function buildMatchPayloadFromForm(formData) {
     phase: String(formData.get("phase") || "").trim() || null,
     status,
     home_score: homeScore,
-    away_score: awayScore
+    away_score: awayScore,
+    api_football_fixture_id: normalizeNullableNumber(formData.get("api_football_fixture_id"))
   };
 }
 
