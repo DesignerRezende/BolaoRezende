@@ -1210,7 +1210,7 @@ function renderAdminMatches() {
           <span>${formatAdminDate(match.match_date)}</span>
           <span>${escapeHtml(match.phase || "Fase nao informada")}</span>
           <span>${formatAdminScore(match)}</span>
-          <span>ID API: ${escapeHtml(match.api_football_fixture_id || "-")}</span>
+          <span>ID football-data: ${escapeHtml(match.api_football_fixture_id || "-")}</span>
           <span>${hasSpecific ? "Regra específica" : "Regra geral"}: ${escapeHtml(getGuessDeadlineShortText(deadlineConfig))}</span>
         </div>
 
@@ -1253,7 +1253,7 @@ function renderAdminMatches() {
           </label>
 
           <label>
-            ID Football API
+            ID football-data.org
             <input name="api_football_fixture_id" type="number" min="0" step="1" value="${match.api_football_fixture_id ?? ""}">
           </label>
         </div>
