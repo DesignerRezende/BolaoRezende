@@ -601,18 +601,34 @@ async function adminListRanking() {
 
 async function adminListGuesses() {
   const client = getSupabaseClient();
+  const pageSize = 1000;
+  let from = 0;
+  let allRows = [];
 
-  const { data, error } = await client
-    .from("guesses")
-    .select(`
-      *,
-      participant:participants (*),
-      match:matches (*)
-    `)
-    .order("updated_at", { ascending: false });
+  while (true) {
+    const { data, error } = await client
+      .from("guesses")
+      .select(`
+        *,
+        participant:participants (*),
+        match:matches (*)
+      `)
+      .order("updated_at", { ascending: false })
+      .range(from, from + pageSize - 1);
 
-  if (error) throw error;
-  return data || [];
+    if (error) throw error;
+
+    const rows = data || [];
+    allRows = allRows.concat(rows);
+
+    if (rows.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return allRows;
 }
 
 async function adminListParticipantPredictions() {
