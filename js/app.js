@@ -77,7 +77,10 @@ const predictionNextButton = document.querySelector("#prediction-next-button");
 const rankingPanel = document.querySelector("#ranking-panel");
 const todayGamesPanel = document.querySelector("#today-games-panel");
 const todayGamesList = document.querySelector("#today-games-list");
+const tomorrowGamesPanel = document.querySelector("#tomorrow-games-panel");
+const tomorrowGamesList = document.querySelector("#tomorrow-games-list");
 const bottomNavToday = document.querySelector("#bottom-nav-today");
+const bottomNavTomorrow = document.querySelector("#bottom-nav-tomorrow");
 const bottomNavRanking = document.querySelector("#bottom-nav-ranking");
 const bottomNav = document.querySelector(".bottom-nav");
 
@@ -124,6 +127,13 @@ if (bottomNavToday) {
   bottomNavToday.addEventListener("click", () => {
     renderTodayGames();
     openFloatingPanel(todayGamesPanel);
+  });
+}
+
+if (bottomNavTomorrow) {
+  bottomNavTomorrow.addEventListener("click", () => {
+    renderTomorrowGames();
+    openFloatingPanel(tomorrowGamesPanel);
   });
 }
 
@@ -373,6 +383,7 @@ async function loadDashboard(options = {}) {
     renderLiveBox();
     renderMatches();
     renderTodayGames();
+    renderTomorrowGames();
     startCountdowns();
     await renderRanking();
     maybeOpenPredictionModal();
@@ -422,6 +433,7 @@ async function refreshAfterGuess(matchId) {
     renderLiveBox();
     renderMatches();
     renderTodayGames();
+    renderTomorrowGames();
     startCountdowns();
     await renderRanking();
 
@@ -1555,6 +1567,107 @@ function renderTodayGames() {
       </article>
     `;
   }).join("");
+}
+
+function renderTomorrowGames() {
+  if (!tomorrowGamesList) return;
+
+  if (!state.matches.length) {
+    tomorrowGamesList.innerHTML = `
+      <div class="today-empty">
+        <strong>Nenhum jogo cadastrado para amanhã.</strong>
+        <span>Quando houver partidas no dia seguinte, elas aparecerão aqui.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+  const tomorrowKey = getLocalDateKey(tomorrowDate);
+  const tomorrowMatches = state.matches
+    .filter((match) => getLocalDateKey(new Date(match.match_date)) === tomorrowKey)
+    .sort((a, b) => new Date(a.match_date) - new Date(b.match_date));
+
+  if (!tomorrowMatches.length) {
+    tomorrowGamesList.innerHTML = `
+      <div class="today-empty">
+        <strong>Nenhum jogo cadastrado para amanhã.</strong>
+        <span>Volte depois que novas partidas forem cadastradas.</span>
+      </div>
+    `;
+    return;
+  }
+
+  tomorrowGamesList.innerHTML = tomorrowMatches.map((match) => {
+    const homeTeam = findWorldCupTeamByName(match.home_team);
+    const awayTeam = findWorldCupTeamByName(match.away_team);
+    const locked = isGuessClosed(match);
+    const closeTime = getGuessCloseDate(match);
+
+    return `
+      <article
+        class="today-match-card tomorrow-match-card"
+        data-locked="${locked}"
+        data-tomorrow-match-id="${escapeHtml(match.id)}"
+        role="button"
+        tabindex="0"
+        aria-label="Ir para o palpite de ${escapeHtml(match.home_team)} contra ${escapeHtml(match.away_team)}"
+      >
+        <div class="today-match-card__header">
+          <div>
+            <div class="match-meta">${escapeHtml(match.phase || "Fase não informada")}</div>
+            <div class="match-timer">${getCountdownText(match)}</div>
+            <div class="match-countdown">
+              ${locked ? "Palpites encerrados" : `Palpites abertos até ${formatDateSentence(closeTime)}`}
+            </div>
+          </div>
+
+          <span class="status ${statusClass(match.status)}">${escapeHtml(match.status || "aberto")}</span>
+        </div>
+
+        <div class="today-match-card__game">
+          <div class="match-team">
+            <span class="match-team__flag">${renderMatchFlag(homeTeam, match.home_team)}</span>
+            <strong>${escapeHtml(getMatchTeamCode(homeTeam, match.home_team))}</strong>
+            <span>${escapeHtml(match.home_team)}</span>
+          </div>
+
+          <div class="today-match-card__center">
+            <span class="today-match-card__score">${formatScore(match)}</span>
+            <span class="match-versus">VS</span>
+          </div>
+
+          <div class="match-team">
+            <span class="match-team__flag">${renderMatchFlag(awayTeam, match.away_team)}</span>
+            <strong>${escapeHtml(getMatchTeamCode(awayTeam, match.away_team))}</strong>
+            <span>${escapeHtml(match.away_team)}</span>
+          </div>
+        </div>
+
+        <div class="today-match-card__footer">
+          <span>${formatDate(match.match_date)}</span>
+          <span>${state.guessCounts[match.id] || 0} palpites</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  tomorrowGamesList.querySelectorAll("[data-tomorrow-match-id]").forEach((card) => {
+    const matchId = card.dataset.tomorrowMatchId;
+
+    card.addEventListener("click", () => {
+      focusMatchFromLiveBox(matchId);
+    });
+
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        focusMatchFromLiveBox(matchId);
+      }
+    });
+  });
 }
 
 function getLocalDateKey(date) {

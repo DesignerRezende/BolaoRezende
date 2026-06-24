@@ -199,10 +199,34 @@
       </div>
     </section>
 
+    <section id="tomorrow-games-panel" class="floating-info-panel" hidden>
+      <div class="floating-info-panel__overlay" data-close-floating-panel></div>
+
+      <div class="floating-info-panel__dialog">
+        <div class="floating-info-panel__header">
+          <div>
+            <p class="eyebrow">Amanhã</p>
+            <h2>Jogos de amanhã</h2>
+          </div>
+
+          <button class="floating-info-panel__close" type="button" data-close-floating-panel>Voltar</button>
+        </div>
+
+        <div id="tomorrow-games-list" class="today-games-list tomorrow-games-list">
+          Carregando jogos de amanhã...
+        </div>
+      </div>
+    </section>
+
     <nav class="bottom-nav" aria-label="Atalhos do bolão">
       <button id="bottom-nav-today" class="bottom-nav__button" type="button">
         <span class="bottom-nav__icon">📅</span>
         <strong>Jogos do dia</strong>
+      </button>
+
+      <button id="bottom-nav-tomorrow" class="bottom-nav__button" type="button">
+        <span class="bottom-nav__icon">📅</span>
+        <strong>Jogos de amanhã</strong>
       </button>
 
       <button id="bottom-nav-ranking" class="bottom-nav__button" type="button">
