@@ -575,24 +575,26 @@ async function adminListRanking() {
 
   return ranking.map((row) => {
     const participantGuesses = guesses.filter((guess) => guess.participant_id === row.participant_id);
-    let exactScores = 0;
-    let resultHits = 0;
+    let exactScores = Number(row.exact_scores ?? row.exactScores ?? 0);
+    let resultHits = Number(row.result_hits ?? row.resultHits ?? 0);
 
-    participantGuesses.forEach((guess) => {
-      const match = matchById.get(guess.match_id);
-      if (!match || match.status !== "encerrado") return;
+    if (!exactScores && !resultHits) {
+      participantGuesses.forEach((guess) => {
+        const match = matchById.get(guess.match_id);
+        if (!match || match.status !== "encerrado") return;
 
-      const exact =
-        Number(guess.home_score_guess) === Number(match.home_score) &&
-        Number(guess.away_score_guess) === Number(match.away_score);
+        const exact =
+          Number(guess.home_score_guess) === Number(match.home_score) &&
+          Number(guess.away_score_guess) === Number(match.away_score);
 
-      const result =
-        Math.sign(Number(guess.home_score_guess) - Number(guess.away_score_guess)) ===
-        Math.sign(Number(match.home_score) - Number(match.away_score));
+        const result =
+          Math.sign(Number(guess.home_score_guess) - Number(guess.away_score_guess)) ===
+          Math.sign(Number(match.home_score) - Number(match.away_score));
 
-      if (exact) exactScores += 1;
-      if (!exact && result) resultHits += 1;
-    });
+        if (exact) exactScores += 1;
+        if (!exact && result) resultHits += 1;
+      });
+    }
 
     const prediction = predictionsByParticipant.get(row.participant_id);
 
@@ -600,9 +602,9 @@ async function adminListRanking() {
       ...row,
       exactScores,
       resultHits,
-      champion: getPredictionChampionName(prediction),
-      topScorer: getPredictionScorerName(prediction),
-      predictionDate: prediction?.selected_at || prediction?.created_at || ""
+      champion: row.champion || getPredictionChampionName(prediction),
+      topScorer: row.top_scorer || row.topScorer || getPredictionScorerName(prediction),
+      predictionDate: row.prediction_date || row.predictionDate || prediction?.selected_at || prediction?.created_at || ""
     };
   });
 }
@@ -1488,8 +1490,8 @@ function renderAdminRanking() {
       <td>${escapeHtml(row.store_sector || "-")}</td>
       <td><strong>${row.points}</strong></td>
       <td>${row.guesses}</td>
-      <td>${row.exactScores}</td>
-      <td>${row.resultHits}</td>
+      <td>${row.exact_scores ?? row.exactScores ?? "-"}</td>
+      <td>${row.result_hits ?? row.resultHits ?? "-"}</td>
       <td>${escapeHtml(row.champion || "-")}</td>
       <td>${escapeHtml(row.topScorer || "-")}</td>
       <td>${formatAdminDate(row.predictionDate)}</td>
