@@ -9,6 +9,8 @@ const adminState = {
   predictions: [],
   participants: [],
   employees: [],
+  worldCupTeams: [],
+  finalResults: null,
   guessDeadlineConfig: DEFAULT_GUESS_DEADLINE_CONFIG,
   matchDeadlineSettings: {}
 };
@@ -58,6 +60,8 @@ function bindAdminEvents() {
   document.querySelector("#admin-refresh-ranking")?.addEventListener("click", loadAdminRanking);
   document.querySelector("#admin-export-guesses")?.addEventListener("click", exportGuessesCsv);
   document.querySelector("#admin-participant-search-form")?.addEventListener("submit", handleParticipantSearch);
+  document.querySelector("#admin-final-results-form")?.addEventListener("submit", handleSaveFinalResults);
+  document.querySelector("#admin-clear-champion-result")?.addEventListener("click", handleClearChampionResult);
 
   document.querySelector("#admin-refresh-employees")?.addEventListener("click", loadAdminEmployees);
   document.querySelector("#admin-create-employee-form")?.addEventListener("submit", handleCreateEmployee);
@@ -143,7 +147,8 @@ async function showAdminPanel() {
       loadAdminMatches(),
       loadAdminRanking(),
       loadAdminGuesses(),
-      loadAdminPredictions()
+      loadAdminPredictions(),
+      loadAdminFinalResults()
     ]);
 
     await loadAdminGuessDeadlineConfig();
@@ -177,7 +182,10 @@ function activateAdminTab(tab) {
 
   if (tab === "ranking") loadAdminRanking();
   if (tab === "guesses") loadAdminGuesses();
-  if (tab === "predictions") loadAdminPredictions();
+  if (tab === "predictions") {
+    loadAdminFinalResults();
+    loadAdminPredictions();
+  }
   if (tab === "employees") loadAdminEmployees();
 }
 
@@ -567,24 +575,26 @@ async function adminListRanking() {
 
   return ranking.map((row) => {
     const participantGuesses = guesses.filter((guess) => guess.participant_id === row.participant_id);
-    let exactScores = 0;
-    let resultHits = 0;
+    let exactScores = Number(row.exact_scores ?? row.exactScores ?? 0);
+    let resultHits = Number(row.result_hits ?? row.resultHits ?? 0);
 
-    participantGuesses.forEach((guess) => {
-      const match = matchById.get(guess.match_id);
-      if (!match || match.status !== "encerrado") return;
+    if (!exactScores && !resultHits) {
+      participantGuesses.forEach((guess) => {
+        const match = matchById.get(guess.match_id);
+        if (!match || match.status !== "encerrado") return;
 
-      const exact =
-        Number(guess.home_score_guess) === Number(match.home_score) &&
-        Number(guess.away_score_guess) === Number(match.away_score);
+        const exact =
+          Number(guess.home_score_guess) === Number(match.home_score) &&
+          Number(guess.away_score_guess) === Number(match.away_score);
 
-      const result =
-        Math.sign(Number(guess.home_score_guess) - Number(guess.away_score_guess)) ===
-        Math.sign(Number(match.home_score) - Number(match.away_score));
+        const result =
+          Math.sign(Number(guess.home_score_guess) - Number(guess.away_score_guess)) ===
+          Math.sign(Number(match.home_score) - Number(match.away_score));
 
-      if (exact) exactScores += 1;
-      if (!exact && result) resultHits += 1;
-    });
+        if (exact) exactScores += 1;
+        if (!exact && result) resultHits += 1;
+      });
+    }
 
     const prediction = predictionsByParticipant.get(row.participant_id);
 
@@ -592,9 +602,9 @@ async function adminListRanking() {
       ...row,
       exactScores,
       resultHits,
-      champion: getPredictionChampionName(prediction),
-      topScorer: getPredictionScorerName(prediction),
-      predictionDate: prediction?.selected_at || prediction?.created_at || ""
+      champion: row.champion || getPredictionChampionName(prediction),
+      topScorer: row.top_scorer || row.topScorer || getPredictionScorerName(prediction),
+      predictionDate: row.prediction_date || row.predictionDate || prediction?.selected_at || prediction?.created_at || ""
     };
   });
 }
@@ -646,6 +656,36 @@ async function adminListParticipantPredictions() {
 
   if (error) throw error;
   return data || [];
+}
+
+async function adminListWorldCupTeams() {
+  return listWorldCupTeams();
+}
+
+async function adminGetFinalResults() {
+  return getCupFinalResults();
+}
+
+async function adminSaveChampionResult(teamId) {
+  const team = adminState.worldCupTeams.find((item) => String(item.id) === String(teamId));
+
+  if (!team) {
+    throw new Error("Selecione a seleção campeã.");
+  }
+
+  return saveCupFinalResults({
+    champion_team_id: team.id,
+    champion_name: getTeamNameForAdmin(team),
+    champion_defined: true
+  });
+}
+
+async function adminClearChampionResult() {
+  return saveCupFinalResults({
+    champion_team_id: null,
+    champion_name: null,
+    champion_defined: false
+  });
 }
 
 async function adminSearchParticipants(searchTerm) {
@@ -1450,8 +1490,8 @@ function renderAdminRanking() {
       <td>${escapeHtml(row.store_sector || "-")}</td>
       <td><strong>${row.points}</strong></td>
       <td>${row.guesses}</td>
-      <td>${row.exactScores}</td>
-      <td>${row.resultHits}</td>
+      <td>${row.exact_scores ?? row.exactScores ?? "-"}</td>
+      <td>${row.result_hits ?? row.resultHits ?? "-"}</td>
       <td>${escapeHtml(row.champion || "-")}</td>
       <td>${escapeHtml(row.topScorer || "-")}</td>
       <td>${formatAdminDate(row.predictionDate)}</td>
@@ -1516,6 +1556,111 @@ function renderAdminGuesses() {
 /* =========================================================
    CAMPEAO E ARTILHEIRO
 ========================================================= */
+
+async function loadAdminFinalResults() {
+  const current = document.querySelector("#admin-final-results-current");
+  const select = document.querySelector("#admin-champion-team-id");
+
+  if (current) {
+    current.innerHTML = 'Campeã oficial: <strong>carregando...</strong>';
+  }
+
+  try {
+    const [teams, finalResults] = await Promise.all([
+      adminListWorldCupTeams(),
+      adminGetFinalResults()
+    ]);
+
+    adminState.worldCupTeams = teams;
+    adminState.finalResults = finalResults;
+
+    fillChampionResultSelect(select);
+    renderAdminFinalResults();
+  } catch (error) {
+    if (current) {
+      current.innerHTML = `Campeã oficial: <strong>${escapeHtml(error.message)}</strong>`;
+    }
+  }
+}
+
+function fillChampionResultSelect(select = document.querySelector("#admin-champion-team-id")) {
+  if (!select) return;
+
+  const selectedChampionId = adminState.finalResults?.champion_team_id || "";
+
+  select.innerHTML = `
+    <option value="">Selecione a campeã</option>
+    ${adminState.worldCupTeams.map((team) => `
+      <option value="${escapeHtml(team.id)}" ${String(team.id) === String(selectedChampionId) ? "selected" : ""}>
+        ${escapeHtml(getTeamNameForAdmin(team))}
+      </option>
+    `).join("")}
+  `;
+}
+
+function renderAdminFinalResults() {
+  const current = document.querySelector("#admin-final-results-current");
+  if (!current) return;
+
+  const championName = getFinalChampionName(adminState.finalResults);
+  const championDefined = Boolean(adminState.finalResults?.champion_defined);
+
+  current.innerHTML = `
+    Campeã oficial:
+    <strong>${escapeHtml(championDefined ? championName || "não definida" : "não definida")}</strong>
+  `;
+}
+
+async function handleSaveFinalResults(event) {
+  event.preventDefault();
+
+  const button = event.target.querySelector('button[type="submit"]');
+  const championTeamId = document.querySelector("#admin-champion-team-id")?.value || "";
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Salvando...";
+  }
+
+  try {
+    adminState.finalResults = await adminSaveChampionResult(championTeamId);
+    renderAdminFinalResults();
+    showAdminToast("Seleção campeã salva.");
+    await loadAdminRanking();
+  } catch (error) {
+    showAdminToast(error.message);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Salvar seleção campeã";
+    }
+  }
+}
+
+async function handleClearChampionResult() {
+  const button = document.querySelector("#admin-clear-champion-result");
+  const select = document.querySelector("#admin-champion-team-id");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Limpando...";
+  }
+
+  try {
+    adminState.finalResults = await adminClearChampionResult();
+    if (select) select.value = "";
+    renderAdminFinalResults();
+    showAdminToast("Campeã oficial limpa.");
+    await loadAdminRanking();
+  } catch (error) {
+    showAdminToast(error.message);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Limpar campeã oficial";
+    }
+  }
+}
 
 async function loadAdminPredictions() {
   const body = document.querySelector("#admin-predictions-body");
@@ -1843,6 +1988,24 @@ function getPredictionChampionName(prediction) {
 
 function getPredictionScorerName(prediction) {
   return prediction?.top_scorer_player?.name || prediction?.top_scorer_name || "";
+}
+
+function getTeamNameForAdmin(team) {
+  return team?.name || team?.country_name || team?.label || "";
+}
+
+function getFinalChampionName(finalResults) {
+  if (!finalResults) return "";
+
+  if (finalResults.champion_name) {
+    return finalResults.champion_name;
+  }
+
+  const championTeam = adminState.worldCupTeams.find((team) => {
+    return String(team.id) === String(finalResults.champion_team_id);
+  });
+
+  return getTeamNameForAdmin(championTeam);
 }
 
 function escapeSupabaseLike(value) {

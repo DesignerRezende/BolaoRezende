@@ -143,13 +143,38 @@ async function getCupFinalResults() {
   const client = getSupabaseClient();
 
   const { data, error } = await client
+    .from("bolao_special_results")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+
+  if (!error) return data || null;
+
+  const { data: legacyData, error: legacyError } = await client
     .from("cup_final_results")
     .select("*")
     .eq("id", true)
     .maybeSingle();
 
+  if (legacyError) throw error;
+  return legacyData || null;
+}
+
+async function saveCupFinalResults(payload) {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("bolao_special_results")
+    .upsert({
+      id: true,
+      ...payload,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "id" })
+    .select()
+    .single();
+
   if (error) throw error;
-  return data || null;
+  return data;
 }
 
 async function saveParticipantPrediction(payload) {
@@ -469,32 +494,6 @@ function calculatePoints(guess, match) {
   return realResult === guessResult ? 3 : 0;
 }
 
-function calculatePredictionBonus(prediction, finalResults) {
-  if (!prediction || !finalResults || !finalResults.is_finalized) {
-    return {
-      points: 0,
-      championHit: false,
-      topScorerHit: false
-    };
-  }
-
-  const championHit =
-    finalResults.champion_team_id &&
-    prediction.champion_team_id &&
-    String(finalResults.champion_team_id) === String(prediction.champion_team_id);
-
-  const topScorerHit =
-    finalResults.top_scorer_player_id &&
-    prediction.top_scorer_player_id &&
-    String(finalResults.top_scorer_player_id) === String(prediction.top_scorer_player_id);
-
-  return {
-    points: (championHit ? 10 : 0) + (topScorerHit ? 7 : 0),
-    championHit,
-    topScorerHit
-  };
-}
-
 async function listAllGuesses() {
   const client = getSupabaseClient();
 
@@ -518,17 +517,6 @@ async function listParticipants() {
   return data || [];
 }
 
-async function updateGuessPoints(guessId, points) {
-  const client = getSupabaseClient();
-
-  const { error } = await client
-    .from("guesses")
-    .update({ points })
-    .eq("id", guessId);
-
-  if (error) throw error;
-}
-
 async function getGuessCounts() {
   const guesses = await listAllGuesses();
 
@@ -539,100 +527,10 @@ async function getGuessCounts() {
 }
 
 async function listRanking() {
-  const [participants, matches, guesses, predictions, finalResults] = await Promise.all([
-    listParticipants(),
-    listMatches(),
-    listAllGuesses(),
-    listParticipantPredictions(),
-    getCupFinalResults()
-  ]);
+  const client = getSupabaseClient();
 
-  const matchById = new Map(matches.map((match) => [match.id, match]));
-  const participantById = new Map(participants.map((participant) => [participant.id, participant]));
-  const predictionByParticipantId = new Map(
-    predictions.map((prediction) => [prediction.participant_id, prediction])
-  );
+  const { data, error } = await client.rpc("get_rezende_leaderboard");
 
-  const rankingMap = new Map();
-
-  participants.forEach((participant) => {
-    rankingMap.set(participant.id, {
-      participant,
-      points: 0,
-      gamePoints: 0,
-      bonusPoints: 0,
-      guesses: 0,
-      exactScores: 0,
-      resultHits: 0,
-      championHit: false,
-      topScorerHit: false
-    });
-  });
-
-  for (const guess of guesses) {
-    const participant = participantById.get(guess.participant_id);
-    const match = matchById.get(guess.match_id);
-
-    if (!participant || !match) continue;
-
-    const points = calculatePoints(guess, match);
-
-    if (guess.points !== points) {
-      updateGuessPoints(guess.id, points).catch(console.error);
-    }
-
-    const row = rankingMap.get(participant.id);
-    row.points += points;
-    row.gamePoints += points;
-    row.guesses += 1;
-
-    if (match.status === "encerrado" && match.home_score !== null && match.away_score !== null) {
-      const exactScore =
-        Number(guess.home_score_guess) === Number(match.home_score) &&
-        Number(guess.away_score_guess) === Number(match.away_score);
-
-      const realResult = Math.sign(Number(match.home_score) - Number(match.away_score));
-      const guessResult = Math.sign(Number(guess.home_score_guess) - Number(guess.away_score_guess));
-
-      if (exactScore) {
-        row.exactScores += 1;
-      } else if (realResult === guessResult) {
-        row.resultHits += 1;
-      }
-    }
-  }
-
-  for (const row of rankingMap.values()) {
-    const prediction = predictionByParticipantId.get(row.participant.id);
-    const bonus = calculatePredictionBonus(prediction, finalResults);
-
-    row.points += bonus.points;
-    row.bonusPoints = bonus.points;
-    row.championHit = bonus.championHit;
-    row.topScorerHit = bonus.topScorerHit;
-  }
-
-  return [...rankingMap.values()]
-    .sort((a, b) =>
-      b.points - a.points ||
-      b.gamePoints - a.gamePoints ||
-      b.exactScores - a.exactScores ||
-      b.resultHits - a.resultHits ||
-      b.guesses - a.guesses ||
-      a.participant.name.localeCompare(b.participant.name)
-    )
-    .map((row, index) => ({
-      participant_id: row.participant.id,
-      position: index + 1,
-      name: row.participant.name,
-      store_sector: row.participant.store_sector,
-      points: row.points,
-      gamePoints: row.gamePoints,
-      bonusPoints: row.bonusPoints,
-      guesses: row.guesses,
-      exactScores: row.exactScores,
-      resultHits: row.resultHits,
-      championHit: row.championHit,
-      topScorerHit: row.topScorerHit
-    }));
+  if (error) throw error;
+  return data || [];
 }

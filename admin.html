@@ -682,6 +682,29 @@
       <section id="admin-tab-predictions" class="admin-section">
         <article class="panel">
           <div class="section-title">
+            <p class="eyebrow">Resultado oficial</p>
+            <h2>Fechamento do Bolão</h2>
+          </div>
+
+          <form id="admin-final-results-form" class="form">
+            <label>
+              Seleção campeã
+              <select id="admin-champion-team-id" name="champion_team_id">
+                <option value="">Selecione a campeã</option>
+              </select>
+            </label>
+
+            <button type="submit">Salvar seleção campeã</button>
+            <button id="admin-clear-champion-result" class="button-secondary" type="button">Limpar campeã oficial</button>
+          </form>
+
+          <p id="admin-final-results-current" class="admin-deadline-current">
+            Campeã oficial: <strong>carregando...</strong>
+          </p>
+        </article>
+
+        <article class="panel">
+          <div class="section-title">
             <p class="eyebrow">Primeiro acesso</p>
             <h2>Campeao e artilheiro</h2>
           </div>
@@ -850,7 +873,7 @@
 
   <script src="js/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="js/supabase.js?v=ranking-rpc-20260710"></script>
+  <script src="js/admin.js?v=ranking-admin-columns-20260710"></script>
 </body>
 </html>
