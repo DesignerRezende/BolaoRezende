@@ -143,13 +143,38 @@ async function getCupFinalResults() {
   const client = getSupabaseClient();
 
   const { data, error } = await client
+    .from("bolao_special_results")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+
+  if (!error) return data || null;
+
+  const { data: legacyData, error: legacyError } = await client
     .from("cup_final_results")
     .select("*")
     .eq("id", true)
     .maybeSingle();
 
+  if (legacyError) throw error;
+  return legacyData || null;
+}
+
+async function saveCupFinalResults(payload) {
+  const client = getSupabaseClient();
+
+  const { data, error } = await client
+    .from("bolao_special_results")
+    .upsert({
+      id: true,
+      ...payload,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "id" })
+    .select()
+    .single();
+
   if (error) throw error;
-  return data || null;
+  return data;
 }
 
 async function saveParticipantPrediction(payload) {
@@ -470,7 +495,7 @@ function calculatePoints(guess, match) {
 }
 
 function calculatePredictionBonus(prediction, finalResults) {
-  if (!prediction || !finalResults || !finalResults.is_finalized) {
+  if (!prediction || !finalResults) {
     return {
       points: 0,
       championHit: false,
@@ -479,14 +504,34 @@ function calculatePredictionBonus(prediction, finalResults) {
   }
 
   const championHit =
-    finalResults.champion_team_id &&
-    prediction.champion_team_id &&
-    String(finalResults.champion_team_id) === String(prediction.champion_team_id);
+    Boolean(finalResults.champion_defined) &&
+    (
+      (
+        finalResults.champion_team_id &&
+        prediction.champion_team_id &&
+        String(finalResults.champion_team_id) === String(prediction.champion_team_id)
+      ) ||
+      (
+        !finalResults.champion_team_id &&
+        normalizeText(finalResults.champion_name) &&
+        normalizeText(finalResults.champion_name) === normalizeText(prediction.champion_name)
+      )
+    );
 
   const topScorerHit =
-    finalResults.top_scorer_player_id &&
-    prediction.top_scorer_player_id &&
-    String(finalResults.top_scorer_player_id) === String(prediction.top_scorer_player_id);
+    Boolean(finalResults.top_scorer_defined || finalResults.is_finalized) &&
+    (
+      (
+        finalResults.top_scorer_player_id &&
+        prediction.top_scorer_player_id &&
+        String(finalResults.top_scorer_player_id) === String(prediction.top_scorer_player_id)
+      ) ||
+      (
+        !finalResults.top_scorer_player_id &&
+        normalizeText(finalResults.top_scorer_name) &&
+        normalizeText(finalResults.top_scorer_name) === normalizeText(prediction.top_scorer_name)
+      )
+    );
 
   return {
     points: (championHit ? 10 : 0) + (topScorerHit ? 7 : 0),
@@ -516,17 +561,6 @@ async function listParticipants() {
 
   if (error) throw error;
   return data || [];
-}
-
-async function updateGuessPoints(guessId, points) {
-  const client = getSupabaseClient();
-
-  const { error } = await client
-    .from("guesses")
-    .update({ points })
-    .eq("id", guessId);
-
-  if (error) throw error;
 }
 
 async function getGuessCounts() {
@@ -576,10 +610,6 @@ async function listRanking() {
     if (!participant || !match) continue;
 
     const points = calculatePoints(guess, match);
-
-    if (guess.points !== points) {
-      updateGuessPoints(guess.id, points).catch(console.error);
-    }
 
     const row = rankingMap.get(participant.id);
     row.points += points;
